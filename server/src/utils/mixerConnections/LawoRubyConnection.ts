@@ -287,7 +287,7 @@ export class LawoRubyMixerConnection {
                     ) {
                         // update the fader
                         const level = dbToFloat(levelInDecibel)
-                        store.dispatch  ({   
+                        store.dispatch  ({
                             type: FaderActionTypes.SET_FADER_LEVEL,
                             faderIndex: ch - 1,
                             level: level,
@@ -339,7 +339,7 @@ export class LawoRubyMixerConnection {
                     logger.trace(`Receiving Gain from Ch ${ch}`)
                     const value = (node.contents as Model.Parameter)
                         .value as number
-                    const level = (value - proto.min) / (proto.max - proto.min)
+                    const level = dbToFloat(value)
                     if (
                         ((node.contents as Model.Parameter).value as number) >
                         proto.min
@@ -550,17 +550,14 @@ export class LawoRubyMixerConnection {
     }
 
     updateFadeIOLevel(channelIndex: number, outputLevel: number) {
-        let channelType =
+        const channelType =
             state.channels[0].chMixerConnection[this.mixerIndex].channel[
                 channelIndex
             ].channelType
-        let channelTypeIndex =
+        const channelTypeIndex =
             state.channels[0].chMixerConnection[this.mixerIndex].channel[
                 channelIndex
             ].channelTypeIndex
-        let protocol =
-            this.mixerProtocol.channelTypes[channelType].toMixer
-                .CHANNEL_OUT_GAIN[0]
 
         const level = floatToDB(outputLevel)
 
@@ -640,13 +637,13 @@ export class LawoRubyMixerConnection {
             state.channels[0].chMixerConnection[this.mixerIndex].channel[
                 channelIndex
             ]
-        let channelType = channel.channelType
-        let channelTypeIndex = channel.channelTypeIndex
-        let protocol =
+        const channelType = channel.channelType
+        const channelTypeIndex = channel.channelTypeIndex
+        const protocol =
             this.mixerProtocol.channelTypes[channelType].toMixer
                 .CHANNEL_INPUT_GAIN[0]
 
-        let level = gain * (protocol.max - protocol.min) + protocol.min
+        const level = floatToDB(gain)
 
         this.sendOutMessage(
             protocol.mixerMessage,
