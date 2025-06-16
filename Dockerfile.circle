@@ -1,0 +1,5 @@
+FROM node:12.16.0-alpine
+RUN apk add --no-cache tzdata
+COPY . /opt/sisyfos-audio-controller
+WORKDIR /opt/sisyfos-audio-controller
+CMD ["yarn", "start"]

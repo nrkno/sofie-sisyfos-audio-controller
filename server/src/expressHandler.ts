@@ -23,6 +23,10 @@ const staticPath = path.join(
     'dist'
 )
 logger.data(staticPath).debug('Express static file path:')
+
+import { setupHealthEndpoint } from './nrk/health'
+setupHealthEndpoint(app)
+
 app.use(ROOT_PATH, express.static(staticPath))
 server.listen(SERVER_PORT)
 logger.info(`Server started at http://localhost:${SERVER_PORT}${ROOT_PATH}`)

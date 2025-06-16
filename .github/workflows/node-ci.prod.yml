@@ -43,18 +43,18 @@ jobs:
         with:
           ref: ${{ needs.bump-version.outputs.tag_version }}
           fetch-depth: 0
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.node-version }}
-          
+
       - name: Enable Corepack
         run: corepack enable
 
       - name: Set Yarn Version
         run: corepack prepare yarn@${{ env.yarn-version }} --activate
-        
+
       - name: Get Yarn cache directory
         id: yarn-cache-dir
         run: echo "dir=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
@@ -73,7 +73,7 @@ jobs:
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-
-   
+
       # Regenerate the lockfile explicitly
       - name: Update Lockfile
         run: yarn install --mode=update-lockfile
@@ -88,18 +88,18 @@ jobs:
     steps:
       - name: Access repository
         uses: actions/checkout@v4
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.node-version }}
-          
+
       - name: Enable Corepack
         run: corepack enable
 
       - name: Set Yarn Version
         run: corepack prepare yarn@${{ env.yarn-version }} --activate
-        
+
       - name: Get Yarn cache directory
         id: yarn-cache-dir
         run: echo "dir=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
@@ -118,7 +118,7 @@ jobs:
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-
-       
+
       # Regenerate the lockfile explicitly
       - name: Update Lockfile
         run: yarn install --mode=update-lockfile
@@ -126,7 +126,7 @@ jobs:
       # actual installation
       - name: Install dependencies
         run: yarn install --mode=skip-build
-        
+
       - name: Build
         run: yarn build
 
@@ -141,7 +141,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.node-version }}
-          
+
       - name: Enable Corepack
         run: corepack enable
 
@@ -160,7 +160,7 @@ jobs:
   #       uses: actions/setup-node@v4
   #       with:
   #         node-version: ${{ env.node-version }}
-          
+
   #     - name: Enable Corepack
   #       run: corepack enable
 
@@ -184,18 +184,18 @@ jobs:
     steps:
       - name: Access repository
         uses: actions/checkout@v4
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.node-version }}
-          
+
       - name: Enable Corepack
         run: corepack enable
 
       - name: Set Yarn Version
         run: corepack prepare yarn@${{ env.yarn-version }} --activate
-        
+
       - name: Configure committer
         run: |
           git config user.name "${{ github.event.pusher.name }}"
@@ -237,18 +237,18 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
-          
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.node-version }}
-          
+
       - name: Enable Corepack
         run: corepack enable
 
       - name: Set Yarn Version
         run: corepack prepare yarn@${{ env.yarn-version }} --activate
-        
+
       - name: Get Yarn cache directory
         id: yarn-cache-dir
         run: echo "dir=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
@@ -267,7 +267,7 @@ jobs:
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-
-                 
+
       # Regenerate the lockfile explicitly
       - name: Update Lockfile
         run: yarn install --mode=update-lockfile
@@ -275,16 +275,16 @@ jobs:
       # actual installation
       - name: Install dependencies
         run: yarn install --mode=skip-build
-        
+
       - name: Build
         run: yarn build
-        
+
       - name: Upload client build artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.event.repository.name }}-client
           path: client/dist
-          
+
       - name: Upload server build artifact
         uses: actions/upload-artifact@v4
         with:
@@ -301,21 +301,21 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ needs.bump-version.outputs.commit_sha || github.ref }}
-          
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.node-version }}
-          
+
       - name: Enable Corepack
         run: corepack enable
 
       - name: Set Yarn Version
         run: corepack prepare yarn@${{ env.yarn-version }} --activate
-        
+
       - name: Ensure commits from bump-version
         run: git pull
-        
+
       - name: Get Yarn cache directory
         id: yarn-cache-dir
         run: echo "dir=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
@@ -334,17 +334,17 @@ jobs:
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-
-            
+
       - uses: actions/download-artifact@v4
         with:
           name: ${{ github.event.repository.name }}-client
           path: client/dist
-          
+
       - uses: actions/download-artifact@v4
         with:
           name: ${{ github.event.repository.name }}-server
           path: server/dist
-                
+
       # Regenerate the lockfile explicitly
       - name: Update Lockfile
         run: yarn install --mode=update-lockfile
@@ -352,10 +352,10 @@ jobs:
       # actual installation
       - name: Install dependencies
         run: yarn install --mode=skip-build
-        
+
       - name: Build desktop
         run: yarn build:desktop
-        
+
       - name: Upload desktop build artifact
         uses: actions/upload-artifact@v4
         with:
@@ -568,7 +568,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          
+
   ## Publish to AWS ECR:
   publish-ecr-docker-image:
     if: needs.check-docker-credentials.outputs.defined == 'false' && needs.check-aws-credentials.outputs.has_aws_config == 'true'
@@ -617,4 +617,4 @@ jobs:
               context: .
               push: true
               labels: ${{ steps.ecr-tag.outputs.labels }}
-              tags: '${{ steps.ecr-tag.outputs.tags }}'       
+              tags: '${{ steps.ecr-tag.outputs.tags }}'

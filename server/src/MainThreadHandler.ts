@@ -75,22 +75,22 @@ export class MainThreadHandlers {
     }
 
     updatePartialStore(faderIndex: number) {
-        if (faderIndex >= state.settings[0].numberOfFaders) return
+        const faderObj = state.faders[0].fader[faderIndex]
+        if (!faderObj) return
 
         socketServer.emit(IO.SOCKET_SET_STORE_FADER, {
-            faderIndex: faderIndex,
-            state: state.faders[0].fader[faderIndex],
+          faderIndex: faderIndex,
+          state: faderObj,
         })
-        state.faders[0].fader[faderIndex].assignedChannels?.forEach(
-            (channel: ChannelReference) => {
-                socketServer.emit(IO.SOCKET_SET_STORE_CHANNEL, {
-                    channelIndex: channel.channelIndex,
-                    state: state.channels[0].chMixerConnection[
-                        channel.mixerIndex
-                    ].channel[channel.channelIndex],
-                })
-            }
-        )
+        faderObj.assignedChannels?.forEach((channel: ChannelReference) => {
+          socketServer.emit(IO.SOCKET_SET_STORE_CHANNEL, {
+            channelIndex: channel.channelIndex,
+            state:
+              state.channels[0].chMixerConnection[channel.mixerIndex].channel[
+                channel.channelIndex
+              ],
+          })
+        })
     }
 
     updateMixerOnline(mixerIndex: number, onLineState?: boolean) {

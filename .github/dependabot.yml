@@ -5,9 +5,12 @@ updates:
     directory: '/'
     schedule:
       interval: 'weekly'
+    reviewers:
+      - "@nrkno/sofie-ops"
 
-  - package-ecosystem: 'github-actions'
-    target-branch: 'develop'
-    directory: '/'
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
-      interval: 'weekly'
+      interval: "weekly"
+    reviewers:
+      - "@nrkno/sofie-ops"

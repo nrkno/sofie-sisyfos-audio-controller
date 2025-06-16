@@ -291,7 +291,7 @@ export class LawoRubyMixerConnection implements MixerConnection {
                         const level = dbToFloat(levelInDecibel, minDeciBel)
                         const isPgm = levelInDecibel > this.mixerProtocol.channelTypes[typeIndex]
                             .fromMixer.CHANNEL_OUT_GAIN[0].min
-                        
+
                         if (isPgm) {
                             // update the fader, but only if that means it's on-air
                             store.dispatch  ({
@@ -354,7 +354,7 @@ export class LawoRubyMixerConnection implements MixerConnection {
                     logger.trace(`Receiving Gain from Ch ${ch}`)
                     const value = (node.contents as Model.Parameter)
                         .value as number
-                    const level = (value - proto.min) / (proto.max - proto.min)
+                    const level = dbToFloat(value)
                     if (
                         ((node.contents as Model.Parameter).value as number) >
                         proto.min
@@ -536,20 +536,17 @@ export class LawoRubyMixerConnection implements MixerConnection {
     }
 
     updateFadeIOLevel(channelIndex: number, outputLevel: number) {
-        let channelType =
+        const channelType =
             state.channels[0].chMixerConnection[this.mixerIndex].channel[
                 channelIndex
             ].channelType
-        let channelTypeIndex =
+        const channelTypeIndex =
             state.channels[0].chMixerConnection[this.mixerIndex].channel[
                 channelIndex
             ].channelTypeIndex
-        let protocol =
-            this.mixerProtocol.channelTypes[channelType].toMixer
-                .CHANNEL_OUT_GAIN[0]
 
         const level = floatToDB(
-            outputLevel, 
+            outputLevel,
             this.mixerProtocol.channelTypes[channelType].toMixer
                 .CHANNEL_OUT_GAIN[0].min
         )
@@ -591,7 +588,9 @@ export class LawoRubyMixerConnection implements MixerConnection {
                     type: Model.ParameterType.Boolean,
                 }
             )
-            await response
+            if (response) {
+                await response
+            }
         } catch (e) {
             logger.data(e).error('Ember Error while updating PFL State')
         }
@@ -628,13 +627,13 @@ export class LawoRubyMixerConnection implements MixerConnection {
             state.channels[0].chMixerConnection[this.mixerIndex].channel[
                 channelIndex
             ]
-        let channelType = channel.channelType
-        let channelTypeIndex = channel.channelTypeIndex
-        let protocol =
+        const channelType = channel.channelType
+        const channelTypeIndex = channel.channelTypeIndex
+        const protocol =
             this.mixerProtocol.channelTypes[channelType].toMixer
                 .CHANNEL_INPUT_GAIN[0]
 
-        let level = gain * (protocol.max - protocol.min) + protocol.min
+        const level = floatToDB(gain)
 
         this.sendOutMessage(
             protocol.mixerMessage,

@@ -22,13 +22,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.node-version }}
-          
+
       - name: Enable Corepack
         run: corepack enable
 
       - name: Set Yarn Version
         run: corepack prepare yarn@${{ env.yarn-version }} --activate
-        
+
       - name: Get Yarn cache directory
         id: yarn-cache-dir
         run: echo "dir=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
@@ -66,18 +66,18 @@ jobs:
     steps:
       - name: Access repository
         uses: actions/checkout@v4
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.node-version }}
-          
+
       - name: Enable Corepack
         run: corepack enable
 
       - name: Set Yarn Version
         run: corepack prepare yarn@${{ env.yarn-version }} --activate
-        
+
       - uses: ./.github/actions/test
 
   build:
@@ -87,12 +87,12 @@ jobs:
     steps:
       - name: Access repository
         uses: actions/checkout@v4
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.node-version }}
-          
+
       - name: Enable Corepack
         run: corepack enable
 
@@ -268,4 +268,4 @@ jobs:
               context: .
               push: true
               labels: ${{ steps.ecr-tag.outputs.labels }}
-              tags: '${{ steps.ecr-tag.outputs.tags }}'          
+              tags: '${{ steps.ecr-tag.outputs.tags }}'
