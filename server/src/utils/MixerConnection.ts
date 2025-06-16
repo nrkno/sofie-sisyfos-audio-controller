@@ -175,6 +175,8 @@ export class MixerGenericConnection {
     delayedFadeActiveDisable = (mixerIndex: number, channelIndex: number) => {
         this.mixerTimers[mixerIndex].fadeActiveTimer[channelIndex] = setTimeout(
             () => {
+                logger.trace(`Clearing fadeActive on ${mixerIndex} Ch ${channelIndex}`)
+
                 store.dispatch({
                     type: ChannelActionTypes.FADE_ACTIVE,
                     mixerIndex: mixerIndex,
@@ -475,9 +477,13 @@ export class MixerGenericConnection {
         let startLevel = state.channels[0].chMixerConnection[mixerIndex].channel[
                 channelIndex].outputLevel
 
-        if (state.channels[0].chMixerConnection[mixerIndex].channel[channelIndex].fadeActive 
+        if (state.channels[0].chMixerConnection[mixerIndex].channel[channelIndex].fadeActive
                 && this.currentOutputLevel[channelIndex] !== undefined
             ) {
+            logger.trace(
+              `Preparing fade on ${mixerIndex} Ch ${channelIndex} level ${startLevel} is overriden by ${this.currentOutputLevel[channelIndex]} because fadeActive`
+            )
+
             startLevel = this.currentOutputLevel[channelIndex]
         }
 
@@ -494,7 +500,7 @@ export class MixerGenericConnection {
         let startLevel = state.channels[0].chMixerConnection[mixerIndex].channel[
             channelIndex].outputLevel
 
-        if (state.channels[0].chMixerConnection[mixerIndex].channel[channelIndex].fadeActive 
+        if (state.channels[0].chMixerConnection[mixerIndex].channel[channelIndex].fadeActive
                 && this.currentOutputLevel[channelIndex] !== undefined
             ) {
             startLevel = this.currentOutputLevel[channelIndex]
@@ -513,6 +519,10 @@ export class MixerGenericConnection {
         const startTimeAsMs = Date.now()
         const updateInterval: number = Math.floor(
             1000 / this.mixerProtocol[mixerIndex].MAX_UPDATES_PER_SECOND
+        )
+
+        logger.trace(
+          `Initiating fade on ${mixerIndex} Ch ${channelIndex} started ${startTimeAsMs}: from ${startLevel} to ${endLevel} at ${startTimeAsMs}`
         )
 
         this.clearTimer(mixerIndex, channelIndex)
@@ -551,6 +561,9 @@ export class MixerGenericConnection {
         const elapsedTimeMS = currentTimeMS - startTimeAsMs
 
         if (elapsedTimeMS >= fadeTime || endLevel === startLevel) {
+            logger.trace(
+              `Finishing fade on ${mixerIndex} Ch ${channelIndex} started ${startTimeAsMs}: from ${startLevel} to ${endLevel}, fadeTime: ${fadeTime}, elapsed: ${elapsedTimeMS}`
+            )
             this.mixerConnection[mixerIndex].updateFadeIOLevel(
                 channelIndex,
                 endLevel
@@ -567,15 +580,17 @@ export class MixerGenericConnection {
             return true
         }
 
-        this.currentOutputLevel[channelIndex] =
-            startLevel +
-            (endLevel - startLevel) *
-                Math.max(0, Math.min(1, elapsedTimeMS / fadeTime))
+        const diff = (endLevel - startLevel)
+        const progress = Math.max(0, Math.min(1, elapsedTimeMS / fadeTime))
+        const newLevel = startLevel + diff * progress
 
-        this.mixerConnection[mixerIndex].updateFadeIOLevel(
-            channelIndex,
-            this.currentOutputLevel[channelIndex]
+        this.currentOutputLevel[channelIndex] = newLevel
+
+        logger.trace(
+          `Doing fade on ${mixerIndex} Ch ${channelIndex} started ${startTimeAsMs}: from ${startLevel} to ${endLevel}, level: ${newLevel}, progress: ${progress}, fadeTime: ${fadeTime}, elapsed: ${elapsedTimeMS}`
         )
+
+        this.mixerConnection[mixerIndex].updateFadeIOLevel(channelIndex, newLevel)
 
         store.dispatch({
             type: ChannelActionTypes.SET_OUTPUT_LEVEL,

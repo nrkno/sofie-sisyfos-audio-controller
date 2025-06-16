@@ -30,7 +30,7 @@
         "osc": "^2.4.5",
         "performance-now": "^2.1.0",
         "redux": "^5.0.1",
-        "shared": "file:../shared",
+        "shared": "*",
         "socket.io": "^4.7.4",
         "tslib": "^2.6.2",
         "vmix-js-utils": "^4.0.19",

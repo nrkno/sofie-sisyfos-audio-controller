@@ -278,11 +278,13 @@ export class LawoRubyMixerConnection implements MixerConnection {
                     const levelInDecibel: number = (
                         node.contents as Model.Parameter
                     ).value as number
-                    logger.trace(
-                        `Receiving Level from Ch ${ch}: ${levelInDecibel}`
-                    )
                     const minDeciBel = this.mixerProtocol.channelTypes[typeIndex].fromMixer
                         .CHANNEL_OUT_GAIN[0].min
+
+                    logger.trace(
+                        `Receiving Level from ${command} Ch ${ch - 1}: ${levelInDecibel}`
+                    )
+
                     if (
                         !state.channels[0].chMixerConnection[this.mixerIndex]
                             .channel[ch - 1].fadeActive &&
@@ -309,7 +311,7 @@ export class LawoRubyMixerConnection implements MixerConnection {
                         })
 
                         // toggle pgm based on level
-                        logger.trace(`Set Channel ${ch} pgmOn ${level > 0}`)
+                        logger.trace(`Set Ch ${ch - 1} pgmOn ${level > 0} from ${command} level ${level}: ${levelInDecibel}`)
                         store.dispatch({
                             type: FaderActionTypes.SET_PGM,
                             faderIndex: ch - 1,
@@ -351,10 +353,12 @@ export class LawoRubyMixerConnection implements MixerConnection {
             this.emberConnection.subscribe(
                 node as NumberedTreeNode<EmberElement>,
                 () => {
-                    logger.trace(`Receiving Gain from Ch ${ch}`)
                     const value = (node.contents as Model.Parameter)
                         .value as number
-                    const level = dbToFloat(value)
+                    const minDeciBel = this.mixerProtocol.channelTypes[typeIndex].fromMixer
+                        .CHANNEL_OUT_GAIN[0].min
+                    const level = dbToFloat(value, minDeciBel)
+                    logger.trace(`Receiving Gain from ${command} Ch ${ch - 1}: ${value}, level: ${level}`)
                     if (
                         ((node.contents as Model.Parameter).value as number) >
                         proto.min
@@ -389,7 +393,7 @@ export class LawoRubyMixerConnection implements MixerConnection {
 
         try {
             const node = await this.emberConnection.getElementByPath(command)
-            logger.debug(`set_cap ${ch} hasInputSel true`)
+            logger.debug(`set_cap ${ch - 1} hasInputSel true`)
             store.dispatch({
                 type: FaderActionTypes.SET_CAPABILITY,
                 faderIndex: ch - 1,
@@ -404,7 +408,7 @@ export class LawoRubyMixerConnection implements MixerConnection {
             this.emberConnection.subscribe(
                 node as NumberedTreeNode<EmberElement>,
                 () => {
-                    logger.trace(`Receiving InpSelector from Ch ${ch}`)
+                    logger.trace(`Receiving InpSelector from ${command} Ch ${ch - 1}`)
                     this.mixerProtocol.channelTypes[
                         typeIndex
                     ].fromMixer.CHANNEL_INPUT_SELECTOR.forEach(
@@ -428,7 +432,7 @@ export class LawoRubyMixerConnection implements MixerConnection {
             )
         } catch (e) {
             if (e.message.match(/could not find node/i)) {
-                logger.debug(`set_cap ${ch} hasInputSel false`)
+                logger.debug(`set_cap ${ch - 1} hasInputSel false`)
                 store.dispatch({
                     type: FaderActionTypes.SET_CAPABILITY,
                     faderIndex: ch - 1,
@@ -471,7 +475,7 @@ export class LawoRubyMixerConnection implements MixerConnection {
             this.emberConnection.subscribe(
                 node as NumberedTreeNode<EmberElement>,
                 () => {
-                    logger.trace(`Receiving AMix state from Ch ${ch}`)
+                    logger.trace(`Receiving AMix state from ${command} Ch ${ch - 1}`)
 
                     store.dispatch({
                         type: FaderActionTypes.SET_AMIX,
@@ -483,7 +487,7 @@ export class LawoRubyMixerConnection implements MixerConnection {
             )
         } catch (e) {
             if (e.message.match(/could not find node/i)) {
-                logger.debug(`set_cap ${ch - 1} hasAMix false`)
+                logger.debug(`set_cap ${command} Ch ${ch - 1} hasAMix false`)
                 store.dispatch({
                     type: FaderActionTypes.SET_CAPABILITY,
                     faderIndex: ch - 1,
@@ -491,7 +495,7 @@ export class LawoRubyMixerConnection implements MixerConnection {
                     enabled: false,
                 })
             }
-            logger.data(e).debug('error when subscribing to input selector')
+            logger.data(e).debug(`error when subscribing to input selector ${command}`)
         }
     }
 
@@ -507,13 +511,20 @@ export class LawoRubyMixerConnection implements MixerConnection {
 
         let message = mixerMessage.replace('{channel}', channelString)
 
+        const timestamp0 = performance.now()
+
         this.emberConnection
             .getElementByPath(message)
             .then((element: any) => {
                 const v = typeof value === 'string' ? parseFloat(value) : value
                 if (element.contents.value === v) return { response: undefined, sentOk: false } // contents is already the same - a bit risky but yolo
-
-                logger.trace(`Sending out message: ${message}`)
+                logger.trace(
+                  `Sending out message: ${message} val: ${v} typeof: ${typeof v}`,
+                  {
+                    epochBegin: timestamp0,
+                    diff: performance.now() - timestamp0,
+                  }
+                )
                 return this.emberConnection.setValue(element, v)
             })
             .then((req) => req.response)
@@ -530,7 +541,7 @@ export class LawoRubyMixerConnection implements MixerConnection {
             this.mixerProtocol.channelTypes[0].toMixer.CHANNEL_OUT_GAIN[0]
                 .mixerMessage
 
-        logger.trace(`Sending out Level: ${value}  To ${source}`)
+        logger.trace(`Sending out value: ${value}  To ${source}`)
 
         this.sendOutMessage(mixerMessage, channel, value)
     }
