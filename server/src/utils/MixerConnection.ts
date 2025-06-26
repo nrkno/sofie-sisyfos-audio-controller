@@ -435,12 +435,6 @@ export class MixerGenericConnection {
             )
             this.clearTimer(mixerIndex, channelIndex)
         }
-        store.dispatch({
-            type: ChannelActionTypes.FADE_ACTIVE,
-            mixerIndex: mixerIndex,
-            channel: channelIndex,
-            active: true,
-        })
         if (isOnAir && fadeTime === 0) {
             // If fadeTime is 0 - jump to level and don't use timer
             this.jumpToLevel(mixerIndex, channelIndex, faderIndex)
@@ -449,6 +443,12 @@ export class MixerGenericConnection {
         } else {
             this.fadeDown(mixerIndex, channelIndex, fadeTime)
         }
+        store.dispatch({
+          type: ChannelActionTypes.FADE_ACTIVE,
+          mixerIndex: mixerIndex,
+          channel: channelIndex,
+          active: true,
+        })
     }
 
     jumpToLevel = (mixerIndex: number, channelIndex: number, faderIndex: number) => {
@@ -561,6 +561,8 @@ export class MixerGenericConnection {
         const elapsedTimeMS = currentTimeMS - startTimeAsMs
 
         if (elapsedTimeMS >= fadeTime || endLevel === startLevel) {
+            this.currentOutputLevel[channelIndex] = endLevel
+
             logger.trace(
               `Finishing fade on ${mixerIndex} Ch ${channelIndex} started ${startTimeAsMs}: from ${startLevel} to ${endLevel}, fadeTime: ${fadeTime}, elapsed: ${elapsedTimeMS}`
             )

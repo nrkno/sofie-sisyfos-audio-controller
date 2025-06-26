@@ -89,8 +89,7 @@ export class AutomationConnection {
             }
 
             logger
-                .data(message)
-                .debug(`RECEIVED AUTOMATION MESSAGE: ${message.address}`)
+                .debug(`RECEIVED AUTOMATION MESSAGE: ${message.address}`, { data: { message } })
 
             // Set state of Sisyfos:
             if (check('CHANNEL_PGM_ON_OFF')) {
