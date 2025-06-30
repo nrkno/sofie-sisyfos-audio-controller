@@ -25,5 +25,5 @@ EXPOSE 1176/udp
 EXPOSE 5255/tcp
 EXPOSE 5255/udp
 ENV NODE_ENV=production
-ENV LOG_LEVEL=trace
+ENV LOG_LEVEL=info
 CMD ["node", "server/dist/server"]
