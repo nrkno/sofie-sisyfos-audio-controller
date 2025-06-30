@@ -11623,7 +11623,16 @@ asn1@evs-broadcast/node-asn1:
   languageName: node
   linkType: hard
 
-"shared@npm:*, shared@workspace:shared":
+"shared@file:../shared::locator=server%40workspace%3Aserver":
+  version: 0.0.0
+  resolution: "shared@file:../shared#../shared::hash=54a9fe&locator=server%40workspace%3Aserver"
+  dependencies:
+    redux: "npm:^5.0.1"
+  checksum: 10c0/b6c60ce2d81f7c77199c9a249eed497e6cad9f1b22ec1d4002d35affd9fcf891bb7a4297113437b57391b96224fb43a40b04108df5c5726d779cc487ede0e3a7
+  languageName: node
+  linkType: hard
+
+"shared@workspace:shared":
   version: 0.0.0-use.local
   resolution: "shared@workspace:shared"
   dependencies:
