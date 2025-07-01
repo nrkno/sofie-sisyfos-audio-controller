@@ -1,3 +1,4 @@
+import { logger } from '../../../server/src/utils/logger'
 import {
     ChannelActionTypes,
 } from '../actions/channelActions'
@@ -118,11 +119,11 @@ export const channels = (
                                         (channel: Channel) => channel.channelType === typeIndex
                                     )
                                 }
-                            
+
                                 // Only set channel state if it exists in next state
                                 // And only if it does not exceed the number of channels in the type
                                 // This is to avoid setting state for channels that has been removed
-                                if (nextState[0].chMixerConnection[mixerIndex].channel[chIndexInState] !== undefined && 
+                                if (nextState[0].chMixerConnection[mixerIndex].channel[chIndexInState] !== undefined &&
                                     action.numberOfTypeChannels[mixerIndex].numberOfTypeInCh[typeIndex] > chIndexInType &&
                                     chIndexInState > -1
                                 ) {
@@ -136,7 +137,7 @@ export const channels = (
                                         mixerIndex].channel[chIndexInState].channelType = typeIndex
                                 }
                             }
-                            chIndexInState++  
+                            chIndexInState++
                             chIndexInType++
                         }
                     )
