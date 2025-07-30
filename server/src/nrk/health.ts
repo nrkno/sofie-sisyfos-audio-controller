@@ -1,5 +1,7 @@
 import { Express } from 'express'
 import { state } from '../reducers/store'
+import fs from 'fs'
+import path from 'path'
 
 /**
  * Health report as described in internal NRK blaabok spec
@@ -31,22 +33,32 @@ enum Status {
     Undefined = 'UNDEFINED',
 }
 
+let packageInfo: { version?: string } = {}
+
+try {
+    packageInfo = JSON.parse(fs.readFileSync(path.join(__dirname, '../../../package.json'), {
+        encoding: 'utf-8'
+    }))
+} catch {
+
+}
+
 export function setupHealthEndpoint(app: Express) {
     app.get('/health', (req, res) => {
         const health: HealthReport = {
-            status: Status.OK,
-            name: 'Sisyfos',
-            updated: new Date().toISOString(),
-            documentation:
-                'https://github.com/nrkno/sofie-sisyfos-audio-controller',
-            version: '5',
-            _internal: {
-                statusCodeString: 'OK',
-                messages: [],
-                versions: {
-                    sisyfos: process.env.npm_package_version,
-                },
+          status: Status.OK,
+          name: 'Sisyfos',
+          updated: new Date().toISOString(),
+          documentation:
+            'https://github.com/nrkno/sofie-sisyfos-audio-controller',
+          version: '5',
+          _internal: {
+            statusCodeString: 'OK',
+            messages: [],
+            versions: {
+              sisyfos: packageInfo.version,
             },
+          },
         }
 
         const isOnline = state.settings[0].serverOnline
