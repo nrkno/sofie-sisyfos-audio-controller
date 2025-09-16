@@ -31,7 +31,7 @@ EXPOSE 1176/udp
 EXPOSE 5255/tcp
 EXPOSE 5255/udp
 ENV NODE_ENV=production
-ENV LOG_LEVEL=debug
+ENV LOG_LEVEL=trace
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 CMD ["node", "server/dist/server"]
