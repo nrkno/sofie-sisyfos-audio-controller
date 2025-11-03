@@ -61,7 +61,7 @@ export const LawoRuby: MixerProtocol = {
         ],
         CHANNEL_OUT_GAIN: [
           {
-            mixerMessage: 'Devices.Channels.{channel}.Fader',
+            mixerMessage: 'Device.Channels.{channel}.Fader',
             value: 0,
             type: 'int',
             min: -16000,
@@ -71,7 +71,7 @@ export const LawoRuby: MixerProtocol = {
         ],
         CHANNEL_NAME: [
           {
-            mixerMessage: '',
+            mixerMessage: 'Device.Channels.{channel}.Label',
             value: 0,
             type: 'real',
             min: -200,
@@ -134,7 +134,7 @@ export const LawoRuby: MixerProtocol = {
           //     zero: 204,
           // },
           {
-            mixerMessage: 'Devices.Channels.{channel}.Fader',
+            mixerMessage: 'Device.Channels.{channel}.Fader',
             value: 0,
             type: 'int',
             min: -16000,
@@ -144,7 +144,7 @@ export const LawoRuby: MixerProtocol = {
         ],
         CHANNEL_NAME: [
           {
-            mixerMessage: '',
+            mixerMessage: 'Device.Channels.{channel}.Label',
             value: 0,
             type: 'real',
             min: -200,
