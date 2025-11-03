@@ -212,7 +212,7 @@ export class AutomationConnection {
                 })
             } else if (check('SET_CHANNEL_STATE')) {
                 wrapChannelCommand((ch: any) => {
-                    const apiState: AutomationChannelAPI = JSON.parse(message.args[0])
+                    const apiState: Partial<AutomationChannelAPI> = JSON.parse(message.args[0])
                     const oldState = state.faders[0].fader[ch - 1]
                     const channelState: Fader = {
                       ...oldState,
