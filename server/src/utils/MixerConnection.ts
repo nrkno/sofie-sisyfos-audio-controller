@@ -31,6 +31,7 @@ import { sendChLevelsToOuputServer } from './outputLevelServer'
 import { MixerConnection } from './mixerConnections'
 import { SecondOutRowButtonType } from '../../../shared/src/reducers/settingsReducer'
 import { LawoMC2Connection } from './mixerConnections/LawoMC2Connection'
+import { DHDMixerConnection } from './mixerConnections/DHDConnection'
 
 export class MixerGenericConnection {
     mixerProtocol: MixerProtocolGeneric[]
@@ -133,6 +134,13 @@ export class MixerGenericConnection {
                 }
                 case MixerConnectionTypes.Atem: {
                     this.mixerConnection[index] = new AtemMixerConnection(
+                        this.mixerProtocol[index],
+                        index
+                    )
+                    break
+                }
+                case MixerConnectionTypes.DHD: {
+                    this.mixerConnection[index] = new DHDMixerConnection(
                         this.mixerProtocol[index],
                         index
                     )
