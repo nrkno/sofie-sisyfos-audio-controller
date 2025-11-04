@@ -139,17 +139,17 @@ export const LawoMC2: MixerProtocol = {
                         zero: 0,
                     },
                 ],
-                CHANNEL_NAME: [
-                    {
-                        mixerMessage:
-                            'Channels.Inputs.${channel}.General.User Label',
-                        value: 0,
-                        type: 'real',
-                        min: -200,
-                        max: 20,
-                        zero: 0,
-                    },
-                ],
+                // CHANNEL_NAME: [
+                //     {
+                //         mixerMessage:
+                //             'Channels.Inputs.${channel}.General.User Label',
+                //         value: 0,
+                //         type: 'real',
+                //         min: -200,
+                //         max: 20,
+                //         zero: 0,
+                //     },
+                // ],
                 CHANNEL_INPUT_GAIN: [
                     {
                         mixerMessage:
