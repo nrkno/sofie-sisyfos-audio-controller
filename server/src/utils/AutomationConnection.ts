@@ -225,7 +225,7 @@ export class AutomationConnection {
                       inputGain: apiState.inputGain ?? oldState.inputGain,
                       inputSelector:
                         apiState.inputSelector ?? oldState.inputSelector,
-                      label: apiState.label ?? oldState.label,
+                      label: apiState.label || oldState.label,
                     }
                     store.dispatch({
                         type: FaderActionTypes.SET_SINGLE_FADER_STATE,
