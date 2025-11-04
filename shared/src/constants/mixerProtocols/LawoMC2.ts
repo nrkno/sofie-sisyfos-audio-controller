@@ -322,17 +322,18 @@ export const LawoMC2: MixerProtocol = {
                         zero: 0,
                     },
                 ],
-                CHANNEL_NAME: [
-                    {
-                        mixerMessage:
-                            'Channels.Groups.${channel}.General.User Label',
-                        value: 0,
-                        type: 'real',
-                        min: -200,
-                        max: 20,
-                        zero: 0,
-                    },
-                ],
+                // Empty user labels are written to the MC2, we're disabling the feature for NRK
+                // CHANNEL_NAME: [
+                //     {
+                //         mixerMessage:
+                //             'Channels.Groups.${channel}.General.User Label',
+                //         value: 0,
+                //         type: 'real',
+                //         min: -200,
+                //         max: 20,
+                //         zero: 0,
+                //     },
+                // ],
                 CHANNEL_INPUT_GAIN: [
                     {
                         mixerMessage:
