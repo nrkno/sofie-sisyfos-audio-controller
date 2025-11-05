@@ -355,8 +355,7 @@ export class LawoRubyMixerConnection implements MixerConnection {
                 () => {
                     const value = (node.contents as Model.Parameter)
                         .value as number
-                    const minDeciBel = this.mixerProtocol.channelTypes[typeIndex].fromMixer
-                        .CHANNEL_OUT_GAIN[0].min
+                    const minDeciBel = proto.min
                     const level = dbToFloat(value, minDeciBel)
                     logger.trace(`Receiving Gain from ${command} Ch ${ch - 1}: ${value}, level: ${level}`)
                     if (

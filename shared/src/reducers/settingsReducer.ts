@@ -112,6 +112,7 @@ export interface MixerSettings {
     devicePort: number
     deviceUrl: string
     deviceToken: string
+    mixerId: string
     protocolLatency: number // If a protocol has latency and feedback, the amount of time before enabling receiving data from channel again
     mixerMidiInputPort: string
     mixerMidiOutputPort: string
@@ -142,6 +143,9 @@ export const defaultSettingsReducerState: Array<Settings> = [
                 mixerProtocol: 'sslSystemT',
                 deviceIp: '0.0.0.0',
                 devicePort: 10024,
+                deviceUrl: '',
+                deviceToken: '',
+                mixerId: '',
                 protocolLatency: 220,
                 mixerMidiInputPort: '',
                 mixerMidiOutputPort: '',

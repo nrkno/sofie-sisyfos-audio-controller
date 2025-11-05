@@ -15,69 +15,88 @@ import { EmberElement, NumberedTreeNode } from 'emberplus-connection/dist/model'
 import { MixerConnection } from '.'
 import { response } from 'express'
 import { EventEmitter } from 'stream'
+import { addAbortListener } from 'events'
+import { floatToDB } from './LawoRubyConnection'
 
 export class DHDMixerConnection implements MixerConnection {
   mixerProtocol: MixerProtocol
   mixerIndex: number
+  dhdMixerId: string
   dhdConnection: DHDWebSocketClient
-  faders: { [index: number]: string } = {}
+  sourceIdToFaderId = new Map<number, string>()
+  sisyfosChannelIdToDHDTargets = new Map<number, {
+    faderId: string
+    sourceId: number
+    sisyfosTypeIndex: number
+  }>()
 
   constructor(mixerProtocol: MixerProtocol, mixerIndex: number) {
-    this.setAttributeOnChannel = this.setAttributeOnChannel.bind(this)
-
     this.mixerProtocol = mixerProtocol
     this.mixerIndex = mixerIndex
 
-    logger.info('Setting up DHD connection')
-    this.dhdConnection = new DHDWebSocketClient(state.settings[0].mixers[this.mixerIndex].deviceUrl, state.settings[0].mixers[this.mixerIndex].deviceToken)
+    this.dhdMixerId = state.settings[0].mixers[this.mixerIndex].mixerId
 
-    store.dispatch({
-      type: SettingsActionTypes.SET_MIXER_ONLINE,
-      mixerIndex: this.mixerIndex,
-      mixerOnline: false,
+    logger.info('Setting up DHD connection')
+    this.dhdConnection = new DHDWebSocketClient(state.settings[0].mixers[this.mixerIndex].deviceUrl, state.settings[0].mixers[this.mixerIndex].deviceToken, {
+      pingInterval: mixerProtocol.pingTime
     })
 
     logger.info('Connecting to DHD via WebSockets')
 
-    this.dhdConnection.addListener('error', () => {
-
+    this.dhdConnection.addListener('error', (error) => {
+      logger.error(`DHDConection error: ${error}`)
+    })
+    this.dhdConnection.addListener('warn', (warn) => {
+      logger.error(`Unexpected condition in DHDConnection: ${warn}`)
     })
     this.dhdConnection.addListener('close', () => {
-
+      store.dispatch({
+        type: SettingsActionTypes.SET_MIXER_ONLINE,
+        mixerIndex: this.mixerIndex,
+        mixerOnline: false,
+      })
+      global.mainThreadHandler.updateMixerOnline(this.mixerIndex)
     })
     this.dhdConnection.addListener('open', () => {
+      logger.info('DHD connection established')
 
+      store.dispatch({
+        type: SettingsActionTypes.SET_MIXER_ONLINE,
+        mixerIndex: this.mixerIndex,
+        mixerOnline: true,
+      })
+      global.mainThreadHandler.updateMixerOnline(this.mixerIndex)
+
+      this.setupMixerConnection().catch((err) => {
+        logger.error(`Error trying to set up the mixer connection: ${err}`)
+      })
     })
   }
 
-  private async setupMixerConnection() {
-    logger.info(
-      'WebSocket connection established - authorizing'
-    )
-
-    // get the node that contains the sources
-    const sourceNode =
-      await this.emberConnection.getElementByPath('Device.Channels')
-    // get the sources
-    const req = await this.emberConnection.getDirectory(
-      sourceNode as NumberedTreeNode<EmberElement>
-    )
-    const sources = await req.response
-
-    // map sourceNames to their fader number
-    if ('children' in sources) {
-      for (const [_i, child] of Object.entries(sources.children)) {
-        if (
-          child.contents.type === Model.ElementType.Node &&
-          child.contents.identifier
-        ) {
-          const name = child.contents.identifier
-          this.faders[child.number] = name
-        }
-      }
+  private fillAddress(address: string, faderId?: string) {
+    let result = address.replaceAll("{mixerID}", this.dhdMixerId)
+    if (faderId) {
+      result = result.replaceAll("{faderID}", faderId)
     }
 
+    return result
+  }
+
+  private async setupMixerConnection() {
+    const fadersGetResult = await this.dhdConnection.getAttribute<Record<string, {
+      sourceid: number
+      label: string
+    }>>(this.fillAddress('/audio/mixers/{mixerID}/faders'))
+    for (const [faderId, faderObj] of Object.entries<{
+      sourceid: number
+      label: string
+    }>(fadersGetResult)) {
+      this.sourceIdToFaderId.set(faderObj.sourceid, faderId)
+    }
+
+    const sortedSourceIds = Array.from(this.sourceIdToFaderId.keys()).sort()
     // Set channel labels
+    let globalChIndex = 0;
     state.settings[0].mixers[this.mixerIndex].numberOfChannelsInType.forEach(
       async (numberOfChannels, typeIndex) => {
         for (
@@ -85,416 +104,201 @@ export class DHDMixerConnection implements MixerConnection {
           channelTypeIndex < numberOfChannels;
           channelTypeIndex++
         ) {
-          if (this.faders[channelTypeIndex + 1]) {
+          const sourceId = sortedSourceIds[channelTypeIndex]
+          const faderId = this.sourceIdToFaderId.get(sourceId)
+          const faderObj = fadersGetResult[faderId]
+          if (faderObj !== undefined) {
             // enable
+            this.sisyfosChannelIdToDHDTargets.set(globalChIndex, {
+              sourceId,
+              faderId,
+              sisyfosTypeIndex: typeIndex,
+            })
             store.dispatch({
               type: ChannelActionTypes.SET_CHANNEL_LABEL,
               mixerIndex: this.mixerIndex,
-              channel: channelTypeIndex,
-              label: this.faders[channelTypeIndex + 1],
+              channel: globalChIndex,
+              label: faderObj.label,
             })
             store.dispatch({
               type: FaderActionTypes.SET_CHANNEL_DISABLED,
-              faderIndex: channelTypeIndex,
+              faderIndex: globalChIndex,
               disabled: false,
             })
             store.dispatch({
               type: FaderActionTypes.SHOW_CHANNEL,
-              faderIndex: channelTypeIndex,
+              faderIndex: globalChIndex,
               showChannel: true,
             })
           } else {
             // disable
+            this.sisyfosChannelIdToDHDTargets.delete(globalChIndex)
             store.dispatch({
               type: FaderActionTypes.SET_CHANNEL_DISABLED,
-              faderIndex: channelTypeIndex,
+              faderIndex: globalChIndex,
               disabled: true,
             })
             store.dispatch({
               type: ChannelActionTypes.SET_CHANNEL_LABEL,
               mixerIndex: this.mixerIndex,
-              channel: channelTypeIndex,
+              channel: globalChIndex,
               label: '',
             })
             store.dispatch({
               type: FaderActionTypes.SHOW_CHANNEL,
-              faderIndex: channelTypeIndex,
+              faderIndex: globalChIndex,
               showChannel: false,
             })
           }
+          globalChIndex++;
         }
       }
     )
 
-    let ch: number = 1
-    for (const typeIndex in state.settings[0].mixers[this.mixerIndex]
-      .numberOfChannelsInType) {
-      const numberOfChannels =
-        state.settings[0].mixers[this.mixerIndex].numberOfChannelsInType[
-        typeIndex
-        ]
-      for (
-        let channelTypeIndex = 0;
-        channelTypeIndex < numberOfChannels;
-        channelTypeIndex++
-      ) {
-        logger.debug(`Running subscriptions for ${this.faders[ch]}`)
-        try {
-          await this.subscribeFaderLevel(
-            ch,
-            Number(typeIndex),
-            channelTypeIndex
+    const abort = new AbortController()
+
+    for (const [sisyfosChannelIndex, targets] of this.sisyfosChannelIdToDHDTargets) {
+      logger.debug(`Running subscriptions for faderId: ${targets.faderId}`)
+
+      try {
+        await this.subscribeFaderLevel(targets.faderId, targets.sisyfosTypeIndex, sisyfosChannelIndex, abort.signal)
+        await this.subscribeGainLevel(targets.faderId, targets.sisyfosTypeIndex, sisyfosChannelIndex, abort.signal)
+      } catch (e) {
+        logger
+          .data(e)
+          .error(
+            `error during subscriptions of parameters for ${targets.faderId}`
           )
-          await this.subscribeGainLevel(ch, Number(typeIndex), channelTypeIndex)
-          await this.subscribeInputSelector(
-            ch,
-            Number(typeIndex),
-            channelTypeIndex
-          )
-          await this.subscribeAMixState(ch, Number(typeIndex), channelTypeIndex)
-          ch++
-        } catch (e) {
-          logger
-            .data(e)
-            .error(
-              `error during subscriptions of parameters for ${this.faders[ch]}`
-            )
-        }
       }
     }
   }
 
   private async subscribeFaderLevel(
-    ch: number,
+    faderId: string,
     typeIndex: number,
-    channelTypeIndex: number
+    sisyfosChannelId: number,
+    signal: AbortSignal
   ) {
-    const sourceName = this.faders[ch]
-    if (!sourceName) return
-
-    let command = this.mixerProtocol.channelTypes[
+    const command = this.fillAddress(this.mixerProtocol.channelTypes[
       typeIndex
-    ].fromMixer.CHANNEL_OUT_GAIN[0].mixerMessage.replace(
-      '{channel}',
-      sourceName
-    )
+    ].fromMixer.CHANNEL_OUT_GAIN[0].mixerMessage, faderId)
 
     try {
-      const node = await this.emberConnection.getElementByPath(command)
-      if (node.contents.type !== Model.ElementType.Parameter) return
+      await this.dhdConnection.subscribeToPath<number>(command, (value) => {
+        logger.trace(`Receiving Level from ${command} Ch ${sisyfosChannelId}: ${value}`)
 
-      logger.debug(`Subscription of channel level: ${command}`)
-      this.emberConnection.subscribe(
-        node as NumberedTreeNode<EmberElement>,
-        () => {
-          const level: number = (node.contents as Model.Parameter)
-            .value as number
+        const level = Number(value)
+        if (!Number.isFinite(level)) {
+          logger.error(`Level value is not a finite number: ${level}`)
+        }
 
-          logger.trace(`Receiving Level from ${command} Ch ${ch - 1}: ${level}`)
-
-          if (
-            !state.channels[0].chMixerConnection[this.mixerIndex].channel[
-              ch - 1
-            ].fadeActive &&
+        if (
+          !state.channels[0].chMixerConnection[this.mixerIndex].channel[
+            sisyfosChannelId
+          ].fadeActive &&
+          level >
+          this.mixerProtocol.channelTypes[typeIndex].fromMixer
+            .CHANNEL_OUT_GAIN[0].min
+        ) {
+          const isPgm =
             level >
             this.mixerProtocol.channelTypes[typeIndex].fromMixer
               .CHANNEL_OUT_GAIN[0].min
-          ) {
-            const isPgm =
-              level >
-              this.mixerProtocol.channelTypes[typeIndex].fromMixer
-                .CHANNEL_OUT_GAIN[0].min
 
-            if (isPgm) {
-              // update the fader, but only if that means it's on-air
-              store.dispatch({
-                type: FaderActionTypes.SET_FADER_LEVEL,
-                faderIndex: ch - 1,
-                level: level,
-              })
-            }
-            // update the output level anyway
+          if (isPgm) {
+            // update the fader, but only if that means it's on-air
             store.dispatch({
-              type: ChannelActionTypes.SET_OUTPUT_LEVEL,
-              mixerIndex: this.mixerIndex,
-              channel: ch - 1,
+              type: FaderActionTypes.SET_FADER_LEVEL,
+              faderIndex: sisyfosChannelId,
               level: level,
             })
-
-            // toggle pgm based on level
-            logger.trace(
-              `Set Ch ${ch - 1} pgmOn ${level > 0} from ${command} level ${level}: ${level}`
-            )
-            store.dispatch({
-              type: FaderActionTypes.SET_PGM,
-              faderIndex: ch - 1,
-              pgmOn: isPgm,
-            })
-
-            global.mainThreadHandler.updatePartialStore(ch - 1)
-            if (remoteConnections) {
-              remoteConnections.updateRemoteFaderState(ch - 1, level)
-            }
           }
-        }
-      )
-    } catch (e) {
-      logger.data(e).debug('error when subscribing to fader level')
-    }
-  }
-  private async subscribeGainLevel(
-    ch: number,
-    typeIndex: number,
-    channelTypeIndex: number
-  ) {
-    const sourceName = this.faders[ch]
-    if (!sourceName) return
-
-    const proto =
-      this.mixerProtocol.channelTypes[typeIndex].fromMixer.CHANNEL_INPUT_GAIN[0]
-    let command = proto.mixerMessage.replace('{channel}', sourceName)
-
-    try {
-      const node = await this.emberConnection.getElementByPath(command)
-      if (node.contents.type !== Model.ElementType.Parameter) return
-
-      logger.debug(`Subscription of channel gain: ${command}`)
-      this.emberConnection.subscribe(
-        node as NumberedTreeNode<EmberElement>,
-        () => {
-          const level = (node.contents as Model.Parameter).value as number
-          logger.trace(
-            `Receiving Gain from ${command} Ch ${ch - 1}: ${level}`
-          )
-          if (
-            ((node.contents as Model.Parameter).value as number) > proto.min
-          ) {
-            store.dispatch({
-              type: FaderActionTypes.SET_INPUT_GAIN,
-              faderIndex: ch - 1,
-              level: level,
-            })
-            global.mainThreadHandler.updatePartialStore(ch - 1)
-          }
-        }
-      )
-    } catch (e) {
-      logger.data(e).debug('Error when subscribing to gain level')
-    }
-  }
-  private async subscribeInputSelector(
-    ch: number,
-    typeIndex: number,
-    channelTypeIndex: number
-  ) {
-    const sourceName = this.faders[ch]
-    if (!sourceName) return
-
-    let command = this.mixerProtocol.channelTypes[
-      typeIndex
-    ].fromMixer.CHANNEL_INPUT_SELECTOR[0].mixerMessage.replace(
-      '{channel}',
-      sourceName
-    )
-
-    try {
-      const node = await this.emberConnection.getElementByPath(command)
-      logger.debug(`set_cap ${ch - 1} hasInputSel true`)
-      store.dispatch({
-        type: FaderActionTypes.SET_CAPABILITY,
-        faderIndex: ch - 1,
-        capability: 'hasInputSelector',
-        enabled: true,
-      })
-      if (node.contents.type !== Model.ElementType.Parameter) {
-        return
-      }
-
-      logger.debug(`Subscription of channel input selector: ${command}`)
-      this.emberConnection.subscribe(
-        node as NumberedTreeNode<EmberElement>,
-        () => {
-          logger.trace(`Receiving InpSelector from ${command} Ch ${ch - 1}`)
-          this.mixerProtocol.channelTypes[
-            typeIndex
-          ].fromMixer.CHANNEL_INPUT_SELECTOR.forEach((selector, i) => {
-            if (selector.value === (node.contents as Model.Parameter).value) {
-              store.dispatch({
-                type: FaderActionTypes.SET_INPUT_SELECTOR,
-                faderIndex: ch - 1,
-                selected: i + 1,
-              })
-              global.mainThreadHandler.updatePartialStore(ch - 1)
-            }
-          })
-        }
-      )
-    } catch (e) {
-      if (e.message.match(/could not find node/i)) {
-        logger.debug(`set_cap ${ch - 1} hasInputSel false`)
-        store.dispatch({
-          type: FaderActionTypes.SET_CAPABILITY,
-          faderIndex: ch - 1,
-          capability: 'hasInputSelector',
-          enabled: false,
-        })
-      }
-      logger.data(e).debug('Error when subscribing to input selector')
-    }
-  }
-  private async subscribeAMixState(
-    ch: number,
-    typeIndex: number,
-    channelTypeIndex: number
-  ) {
-    const sourceName = this.faders[ch]
-    if (!sourceName) return
-
-    let command = this.mixerProtocol.channelTypes[
-      typeIndex
-    ].fromMixer.CHANNEL_AMIX[0].mixerMessage.replace('{channel}', sourceName)
-
-    try {
-      const node = await this.emberConnection.getElementByPath(command)
-      logger.debug(`set_cap ${ch - 1} hasAMix true`)
-      store.dispatch({
-        type: FaderActionTypes.SET_CAPABILITY,
-        faderIndex: ch - 1,
-        capability: 'hasAMix',
-        enabled: true,
-      })
-      if (node.contents.type !== Model.ElementType.Parameter) {
-        return
-      }
-
-      logger.debug(`Subscription of AMix state: ${command}`)
-      this.emberConnection.subscribe(
-        node as NumberedTreeNode<EmberElement>,
-        () => {
-          logger.trace(`Receiving AMix state from ${command} Ch ${ch - 1}`)
-
+          // update the output level anyway
           store.dispatch({
-            type: FaderActionTypes.SET_AMIX,
-            faderIndex: ch - 1,
-            state: (node.contents as Model.Parameter).value === true,
+            type: ChannelActionTypes.SET_OUTPUT_LEVEL,
+            mixerIndex: this.mixerIndex,
+            channel: sisyfosChannelId,
+            level: level,
           })
-          global.mainThreadHandler.updatePartialStore(ch - 1)
+
+          // toggle pgm based on level
+          logger.trace(
+            `Set Ch ${sisyfosChannelId} pgmOn ${level > 0} from ${command} level ${level}: ${level}`
+          )
+          store.dispatch({
+            type: FaderActionTypes.SET_PGM,
+            faderIndex: sisyfosChannelId,
+            pgmOn: isPgm,
+          })
+
+          global.mainThreadHandler.updatePartialStore(sisyfosChannelId)
+          if (remoteConnections) {
+            remoteConnections.updateRemoteFaderState(sisyfosChannelId, level)
+          }
         }
-      )
+      }, signal)
     } catch (e) {
-      if (e.message.match(/could not find node/i)) {
-        logger.debug(`set_cap ${command} Ch ${ch - 1} hasAMix false`)
-        store.dispatch({
-          type: FaderActionTypes.SET_CAPABILITY,
-          faderIndex: ch - 1,
-          capability: 'hasAMix',
-          enabled: false,
-        })
-      }
-      logger
-        .data(e)
-        .debug(`error when subscribing to input selector ${command}`)
+      logger.error(`Could not subscribe to ${command}: ${e}`)
     }
   }
 
-  private setAttributeOnChannel(
-    mixerMessage: string,
-    channel: number,
-    value: string | number | boolean,
-    type?: string
+  private async subscribeGainLevel(
+    faderId: string,
+    typeIndex: number,
+    sisyfosChannelId: number,
+    signal: AbortSignal
   ) {
-    const channelString = this.faders[channel]
+    const command = this.fillAddress(this.mixerProtocol.channelTypes[
+      typeIndex
+    ].fromMixer.CHANNEL_INPUT_GAIN[0].mixerMessage, faderId)
 
-    if (!channelString) return
+    try {
+      await this.dhdConnection.subscribeToPath<number>(command, (value) => {
+        logger.trace(`Receiving Level from ${command} Ch ${sisyfosChannelId}: ${value}`)
 
-    let message = mixerMessage.replace('{channel}', channelString)
+        const level = Number(value)
+        if (!Number.isFinite(level)) {
+          logger.error(`Level value is not a finite number: ${level}`)
+        }
 
-    const timestamp0 = performance.now()
-
-    this.dhdConnection.setAttribute(message, value)
-      .then()
-
-    // .getElementByPath(message)
-    // .then((element: any) => {
-    //   const v = typeof value === 'string' ? parseFloat(value) : value
-    //   if (element.contents.value === v)
-    //     return { response: undefined, sentOk: false } // contents is already the same - a bit risky but yolo
-    //   logger.trace(
-    //     `Sending out message: ${message} val: ${v} typeof: ${typeof v}`,
-    //     {
-    //       epochBegin: timestamp0,
-    //       diff: performance.now() - timestamp0,
-    //     }
-    //   )
-    //   return this.emberConnection.setValue(element, v)
-    // })
-    // .then((req) => req.response)
-    // .catch((error: any) => {
-    //   logger.data(error).error('Ember Error for ' + message + ' -> ' + value)
-    // })
-  }
-
-  private sendOutLevelMessage(channel: number, value: number) {
-    const source = this.faders[channel]
-    if (!channel) return
-
-    const mixerMessage =
-      this.mixerProtocol.channelTypes[0].toMixer.CHANNEL_OUT_GAIN[0]
-        .mixerMessage
-
-    logger.trace(`Sending out value: ${value}  To ${source}`)
-
-    this.setAttributeOnChannel(mixerMessage, channel, value)
+        if (
+          level >
+          this.mixerProtocol.channelTypes[typeIndex].fromMixer
+            .CHANNEL_INPUT_GAIN[0].min
+        ) {
+          store.dispatch({
+            type: FaderActionTypes.SET_INPUT_GAIN,
+            faderIndex: sisyfosChannelId,
+            level: level,
+          })
+          global.mainThreadHandler.updatePartialStore(sisyfosChannelId)
+        }
+      }, signal)
+    } catch (e) {
+      logger.error(`Could not subscribe to ${command}: ${e}`)
+    }
   }
 
   updateFadeIOLevel(channelIndex: number, outputLevel: number) {
     const channelType =
       state.channels[0].chMixerConnection[this.mixerIndex].channel[channelIndex]
         .channelType
-    const channelTypeIndex =
-      state.channels[0].chMixerConnection[this.mixerIndex].channel[channelIndex]
-        .channelTypeIndex
 
-    this.sendOutLevelMessage(channelTypeIndex + 1, outputLevel)
+    const target = this.sisyfosChannelIdToDHDTargets.get(channelIndex)
+    if (!target) return
+    const proto = this.mixerProtocol.channelTypes[channelType].toMixer.CHANNEL_OUT_GAIN[0]
+    const mixerMessage =
+      this.fillAddress(proto.mixerMessage, target.faderId)
+
+    const value = floatToDB(outputLevel, proto.min)
+
+    logger.trace(`Sending out value: ${value} (${outputLevel}) to channel ${channelIndex} (faderId: ${target.faderId})`)
+
+    this.dhdConnection.setAttribute(mixerMessage, value)
   }
 
   async updatePflState(channelIndex: number) {
-    const channel =
-      state.channels[0].chMixerConnection[this.mixerIndex].channel[channelIndex]
-    let channelType = channel.channelType
-    let channelTypeIndex =
-      state.channels[0].chMixerConnection[this.mixerIndex].channel[channelIndex]
-        .channelTypeIndex
-
-    // fetch source name and function node
-    const fader = this.faders[channelTypeIndex + 1]
-    const fn = (await this.emberConnection.getElementByPath(
-      'Ruby.Functions.SetPFLState'
-    )) as Model.NumberedTreeNode<Model.EmberFunction>
-
-    if (!fader || !fn)
-      throw new Error(
-        'Oops could not find node or function to update PFL state'
-      )
-
-    try {
-      const { response } = await this.emberConnection.invoke(
-        fn,
-        {
-          value: fader,
-          type: Model.ParameterType.String,
-        },
-        {
-          value: state.faders[0].fader[channelIndex].pflOn,
-          type: Model.ParameterType.Boolean,
-        }
-      )
-      if (response) {
-        await response
-      }
-    } catch (e) {
-      logger.data(e).error('Ember Error while updating PFL State')
-    }
+    return true
   }
 
   updateMuteState(channelIndex: number, muteOn: boolean) {
@@ -502,14 +306,7 @@ export class DHDMixerConnection implements MixerConnection {
   }
 
   updateAMixState(channelIndex: number, amixOn: boolean) {
-    const channel =
-      state.channels[0].chMixerConnection[this.mixerIndex].channel[channelIndex]
-    const channelType = channel.channelType
-    const channelTypeIndex = channel.channelTypeIndex
-    const protocol =
-      this.mixerProtocol.channelTypes[channelType].toMixer.CHANNEL_AMIX[0]
-
-    this.setAttributeOnChannel(protocol.mixerMessage, channelTypeIndex + 1, amixOn, protocol.type)
+    return true
   }
 
   updateNextAux(channelIndex: number, level: number) {
@@ -520,23 +317,15 @@ export class DHDMixerConnection implements MixerConnection {
     const channel =
       state.channels[0].chMixerConnection[this.mixerIndex].channel[channelIndex]
     const channelType = channel.channelType
-    const channelTypeIndex = channel.channelTypeIndex
-    const protocol =
+    const proto =
       this.mixerProtocol.channelTypes[channelType].toMixer.CHANNEL_INPUT_GAIN[0]
 
-    this.setAttributeOnChannel(protocol.mixerMessage, channelTypeIndex + 1, gain, protocol.type)
+    const target = this.sisyfosChannelIdToDHDTargets.get(channelIndex)
+    if (!target) return
+
+    this.dhdConnection.setAttribute(this.fillAddress(proto.mixerMessage, target.faderId), floatToDB(gain, proto.min))
   }
   updateInputSelector(channelIndex: number, inputSelected: number) {
-    logger.debug(`input select ${channelIndex} ${inputSelected}`)
-    const channel =
-      state.channels[0].chMixerConnection[this.mixerIndex].channel[channelIndex]
-    let channelType = channel.channelType
-    let channelTypeIndex = channel.channelTypeIndex
-    let msg =
-      this.mixerProtocol.channelTypes[channelType].toMixer
-        .CHANNEL_INPUT_SELECTOR[inputSelected - 1]
-
-    this.setAttributeOnChannel(msg.mixerMessage, channelTypeIndex + 1, msg.value, '')
     return true
   }
 
@@ -646,9 +435,7 @@ type DHDOutgoingMessage = DHDAuthReqMessage | DHDSetReqMessage | DHDGetReqMessag
 type DHDUntaggedOutgoingMessage = Omit<DHDOutgoingMessage, 'msgID'>
 
 type DHDResponseHandler = (msg: Readonly<DHDAnyResMessage>) => void
-type DHDUpdateHandler = (subTreeValue: Readonly<any>) => void
-
-type DHDSubscriptionHandle = { unsubscribe: () => Promise<void> }
+type DHDUpdateHandler<T> = (subTreeValue: Readonly<T>) => void
 
 class DHDWebSocketClient extends EventEmitter<{
   'error': [string]
@@ -658,16 +445,17 @@ class DHDWebSocketClient extends EventEmitter<{
 }> {
 
   private msgIDListeners: Map<number, DHDResponseHandler> = new Map()
-  private updateListeners: Map<string, DHDUpdateHandler[]> = new Map()
+  private updateListeners: Map<string, DHDUpdateHandler<unknown>[]> = new Map()
 
   private protocolLastMsgID = 0
 
   private wsConnection: WebSocket
 
   private pingInterval: NodeJS.Timeout
-  private KEEP_ALIVE_PING_INTERVAL = 20 * 1000
 
-  constructor(url: string, token: string) {
+  constructor(url: string, token: string, private readonly options?: {
+    pingInterval?: number
+  }) {
     super()
 
     this.setupConnection(url, token)
@@ -695,9 +483,11 @@ class DHDWebSocketClient extends EventEmitter<{
     })
     this.wsConnection.addListener('open', () => {
       this.authorize(token).then(() => {
-        this.pingInterval = setInterval(() => {
-          this.wsConnection.ping()
-        }, this.KEEP_ALIVE_PING_INTERVAL)
+        if (this.options?.pingInterval) {
+          this.pingInterval = setInterval(() => {
+            this.wsConnection.ping()
+          }, this.options.pingInterval)
+        }
         this.emit('open')
       }).catch((err) => {
         this.emit('error', `Could not authorize: ${err}`)
@@ -836,7 +626,7 @@ class DHDWebSocketClient extends EventEmitter<{
    * @param path 
    * @returns Can be an object or a scalar value
    */
-  public getAttribute = async (path: string): Promise<any> => {
+  public getAttribute = async <T = any>(path: string): Promise<T> => {
     return new Promise((resolve, reject) => {
       this.sendMessage({
         "method": "get",
@@ -855,9 +645,9 @@ class DHDWebSocketClient extends EventEmitter<{
    * Subscribe to updates of the device sub-tree
    * @param path 
    * @param listener A method that will receive updates 
-   * @returns A method that will end sending updates to the `listener`
+   * @returns An object with a method that will end sending updates to the `listener`
    */
-  public subscribeToPath = async (path: string, listener: DHDUpdateHandler): Promise<DHDSubscriptionHandle> => {
+  public subscribeToPath = async <T>(path: string, listener: DHDUpdateHandler<T>, signal: AbortSignal): Promise<void> => {
     if (!path.startsWith("/")) {
       throw new Error(`Path needs to start with a "/" character, got "${path}"`)
     }
@@ -878,26 +668,22 @@ class DHDWebSocketClient extends EventEmitter<{
 
           updateListeners.push(listener)
 
-          resolve({
-            unsubscribe: () => new Promise((resolve, reject) => {
-              const filteredListeners = this.updateListeners.get(processedPath).filter((handler) => handler !== listener)
-              this.updateListeners.set(processedPath, filteredListeners)
-              if (filteredListeners.length === 0) {
-                this.sendMessage({
-                  "method": "unsubscribe",
-                  "path": path,
-                } satisfies Omit<DHDUnsubscribeReqMessage, 'msgID'> as DHDUntaggedOutgoingMessage, (response) => {
-                  if (response.success && response.method === "unsubscribe") {
-                    resolve()
-                  } else {
-                    reject(`Invalid response: "${JSON.stringify(response)}"`)
-                  }
-                })
-              } else {
-                resolve()
-              }
-            })
+          addAbortListener(signal, () => {
+            const filteredListeners = this.updateListeners.get(processedPath).filter((handler) => handler !== listener)
+            this.updateListeners.set(processedPath, filteredListeners)
+            if (filteredListeners.length === 0) {
+              this.sendMessage({
+                "method": "unsubscribe",
+                "path": path,
+              } satisfies Omit<DHDUnsubscribeReqMessage, 'msgID'> as DHDUntaggedOutgoingMessage, (response) => {
+                if (!response.success || response.method !== "unsubscribe") {
+                  this.emit('warn', `Could not unsubscribe to ${path}: ${JSON.stringify(response)}`)
+                }
+              })
+            }
           })
+
+          resolve()
         } else {
           reject(`Invalid response: "${JSON.stringify(response)}"`)
         }

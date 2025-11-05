@@ -5,17 +5,12 @@ import {
     MixerConnectionTypes
 } from '../MixerProtocolInterface'
 
-export const LawoRuby: MixerProtocol = {
+export const DHDMixer: MixerProtocol = {
   protocol: MixerConnectionTypes.DHD,
   label: 'DHD.audio Series52',
-  presetFileExtension: '',
-  loadPresetCommand: [emptyMixerMessage()],
   MAX_UPDATES_PER_SECOND: 10,
   leadingZeros: false, //some OSC protocols needs channels to be 01, 02 etc.
-  pingCommand: [emptyMixerMessage()],
-  pingResponseCommand: [emptyMixerMessage()],
-  pingTime: 0, //Bypass ping when pingTime is zero
-  initializeCommands: [emptyMixerMessage()],
+  pingTime: 20 * 1000, //Bypass ping when pingTime is zero
   vuLabelConversionType: VuLabelConversionType.Decibel,
   vuLabelValues: [0, 0.5, 0.75, 1],
   channelTypes: [
@@ -64,8 +59,8 @@ export const LawoRuby: MixerProtocol = {
             mixerMessage: '/audio/mixers/{mixerID}/faders/{faderID}/fader',
             value: 0,
             type: 'int',
-            min: -16000,
-            max: 1000,
+            min: -160,
+            max: 10,
             zero: 0,
           },
         ],
@@ -73,18 +68,18 @@ export const LawoRuby: MixerProtocol = {
           {
             mixerMessage: '/audio/mixers/{mixerID}/faders/{faderID}/label',
             value: 0,
-            type: 'real',
+            type: 'string',
             min: -200,
             max: 20,
             zero: 0,
           },
         ],
-        PFL: [emptyMixerMessage()],
-        CHANNEL_AMIX: [
-          {
-            mixerMessage: '/audio/mixers/{mixerID}/faders/{faderID}/busparams/automix/group',
-          },
-        ],
+        // PFL: [emptyMixerMessage()],
+        // CHANNEL_AMIX: [
+        //   {
+        //     mixerMessage: '/audio/mixers/{mixerID}/faders/{faderID}/busparams/automix/group',
+        //   },
+        // ],
       },
       toMixer: {
         CHANNEL_INPUT_GAIN: [
@@ -137,25 +132,23 @@ export const LawoRuby: MixerProtocol = {
           {
             mixerMessage: '/audio/mixers/{mixerID}/faders/{faderID}/label',
             value: 0,
-            type: 'real',
+            type: 'string',
             min: -200,
             max: 20,
             zero: 0,
           },
         ],
-        PFL_ON: [emptyMixerMessage()],
-        PFL_OFF: [emptyMixerMessage()],
-        CHANNEL_AMIX: [
-          {
-            mixerMessage: '/audio/mixers/{mixerID}/faders/{faderID}/busparams/automix/group',
-          },
-        ],
+        // CHANNEL_AMIX: [
+        //   {
+        //     mixerMessage: '/audio/mixers/{mixerID}/faders/{faderID}/busparams/automix/group',
+        //   },
+        // ],
       },
     },
   ],
   fader: {
-    min: -16000,
-    max: 1000,
+    min: -160,
+    max: 10,
     zero: 0,
     step: 1,
   },
