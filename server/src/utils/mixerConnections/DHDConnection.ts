@@ -724,7 +724,7 @@ class DHDWebSocketClient extends EventEmitter<{
 
   private onMessage = (data: Buffer | ArrayBuffer | Buffer[]) => {
     function getValueAtPath(path: string, obj: any) {
-      const explodedPath = path.substring(1).split("/")
+      const explodedPath = path.split("/") // the path we have in the Map already has the leading "/" stripped
       let target = obj
       for (let i = 0; i < explodedPath.length; i++) {
         target = target[explodedPath[i]]
@@ -830,24 +830,30 @@ class DHDWebSocketClient extends EventEmitter<{
    * @returns A method that will end sending updates to the `listener`
    */
   public subscribeToPath = async (path: string, listener: DHDUpdateHandler): Promise<() => Promise<void>> => {
+    if (!path.startsWith("/")) {
+      throw new Error(`Path needs to start with a "/" character, got "${path}"`)
+    }
+
     return new Promise((resolve, reject) => {
       this.sendMessage({
         "method": "subscribe",
         "path": path,
       } satisfies Omit<DHDSubscribeReqMessage, 'msgID'> as DHDUntaggedOutgoingMessage, (response) => {
         if (response.success && response.method === "subscribe") {
-          let updateListeners = this.updateListeners.get(path)
+          const processedPath = path.substring(1)
+
+          let updateListeners = this.updateListeners.get(processedPath)
           if (!updateListeners) {
             updateListeners = []
-            this.updateListeners.set(path, updateListeners)
+            this.updateListeners.set(processedPath, updateListeners)
           }
 
           updateListeners.push(listener)
 
           resolve(() => {
             return new Promise((resolve, reject) => {
-              const filteredListeners = this.updateListeners.get(path).filter((handler) => handler !== listener)
-              this.updateListeners.set(path, filteredListeners)
+              const filteredListeners = this.updateListeners.get(processedPath).filter((handler) => handler !== listener)
+              this.updateListeners.set(processedPath, filteredListeners)
               if (filteredListeners.length === 0) {
                 this.sendMessage({
                   "method": "unsubscribe",
