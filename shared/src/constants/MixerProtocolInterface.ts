@@ -12,7 +12,7 @@ export enum MixerConnectionTypes {
     'StuderVista' = 'StuderVista',
     'vMix' = 'vMix',
     'Atem' = 'Atem',
-    'DHDSeries52' = 'DHDSeries52'
+    'DHD' = 'DHD'
 }
 
 export enum FxParam {

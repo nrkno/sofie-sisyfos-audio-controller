@@ -3128,6 +3128,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/ws@npm:^8.18.1":
+  version: 8.18.1
+  resolution: "@types/ws@npm:8.18.1"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: 10c0/61aff1129143fcc4312f083bc9e9e168aa3026b7dd6e70796276dcfb2c8211c4292603f9c4864fae702f2ed86e4abd4d38aa421831c2fd7f856c931a481afbab
+  languageName: node
+  linkType: hard
+
 "@types/yargs-parser@npm:*":
   version: 21.0.3
   resolution: "@types/yargs-parser@npm:21.0.3"
@@ -11565,6 +11574,7 @@ asn1@evs-broadcast/node-asn1:
     "@types/jest": "npm:^29.5.14"
     "@types/node": "npm:^18.16.0"
     "@types/webmidi": "npm:^2.0.10"
+    "@types/ws": "npm:^8.18.1"
     atem-connection: "npm:^3.4.0"
     casparcg-connection: "npm:^5.1.0"
     emberplus-connection: "npm:^0.3.0"
@@ -11583,6 +11593,7 @@ asn1@evs-broadcast/node-asn1:
     vmix-js-utils: "npm:^4.0.19"
     web-midi-api: "npm:^2.2.5"
     webmidi: "npm:^2.5.1"
+    ws: "npm:^8.18.3"
   languageName: unknown
   linkType: soft
 
@@ -13441,6 +13452,21 @@ asn1@evs-broadcast/node-asn1:
     utf-8-validate:
       optional: true
   checksum: 10c0/25eb33aff17edcb90721ed6b0eb250976328533ad3cd1a28a274bd263682e7296a6591ff1436d6cbc50fa67463158b062f9d1122013b361cec99a05f84680e06
+  languageName: node
+  linkType: hard
+
+"ws@npm:^8.18.3":
+  version: 8.18.3
+  resolution: "ws@npm:8.18.3"
+  peerDependencies:
+    bufferutil: ^4.0.1
+    utf-8-validate: ">=5.0.2"
+  peerDependenciesMeta:
+    bufferutil:
+      optional: true
+    utf-8-validate:
+      optional: true
+  checksum: 10c0/eac918213de265ef7cb3d4ca348b891a51a520d839aa51cdb8ca93d4fa7ff9f6ccb339ccee89e4075324097f0a55157c89fa3f7147bde9d8d7e90335dc087b53
   languageName: node
   linkType: hard
 

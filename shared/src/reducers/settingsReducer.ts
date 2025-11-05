@@ -110,6 +110,8 @@ export interface MixerSettings {
     mixerProtocol: string
     deviceIp: string
     devicePort: number
+    deviceUrl: string
+    deviceToken: string
     protocolLatency: number // If a protocol has latency and feedback, the amount of time before enabling receiving data from channel again
     mixerMidiInputPort: string
     mixerMidiOutputPort: string
