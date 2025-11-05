@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^18.16.0",
+    "@types/node": "^24",
     "typescript": "^5.0.4"
   },
   "dependencies": {
