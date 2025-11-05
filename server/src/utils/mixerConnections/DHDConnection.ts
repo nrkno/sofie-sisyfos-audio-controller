@@ -648,8 +648,11 @@ type DHDUntaggedOutgoingMessage = Omit<DHDOutgoingMessage, 'msgID'>
 type DHDResponseHandler = (msg: Readonly<DHDAnyResMessage>) => void
 type DHDUpdateHandler = (subTreeValue: Readonly<any>) => void
 
+type DHDSubscriptionHandle = { unsubscribe: () => Promise<void> }
+
 class DHDWebSocketClient extends EventEmitter<{
   'error': [string]
+  'warn': [string]
   'close': [],
   'open': [],
 }> {
@@ -678,7 +681,7 @@ class DHDWebSocketClient extends EventEmitter<{
         (error.message + '').match(/econnrefused/i) ||
         (error.message + '').match(/disconnected/i)
       ) {
-        this.emit('error', `WebSockets connection not establised: ${error.message}`)
+        this.emit('error', `WebSockets connection not established: ${error.message}`)
       } else {
         this.emit('error', `WebSockets connection unknown error: ${error}`)
       }
@@ -691,13 +694,11 @@ class DHDWebSocketClient extends EventEmitter<{
       }
     })
     this.wsConnection.addListener('open', () => {
-      logger.info('Connected to DHD Mixer')
-
       this.authorize(token).then(() => {
-        this.emit('open')
         this.pingInterval = setInterval(() => {
           this.wsConnection.ping()
         }, this.KEEP_ALIVE_PING_INTERVAL)
+        this.emit('open')
       }).catch((err) => {
         this.emit('error', `Could not authorize: ${err}`)
         this.close()
@@ -722,7 +723,18 @@ class DHDWebSocketClient extends EventEmitter<{
     }
   }
 
-  private onMessage = (data: Buffer | ArrayBuffer | Buffer[]) => {
+  private onResponseMessage = (message: DHDAnyResMessage) => {
+    const msgID = message.msgID
+    const listener = this.msgIDListeners.get(msgID)
+    if (listener) {
+      listener(message)
+    } else {
+      this.emit('warn', `Message msgID ${msgID} received, but noone is listening: ${JSON.stringify(message)}`)
+    }
+    this.msgIDListeners.delete(msgID)
+  }
+
+  private onUpdateMessage = (message: DHDUpdateMessage) => {
     function getValueAtPath(path: string, obj: any) {
       const explodedPath = path.split("/") // the path we have in the Map already has the leading "/" stripped
       let target = obj
@@ -733,27 +745,27 @@ class DHDWebSocketClient extends EventEmitter<{
       return target
     }
 
+    for (const [path, listeners] of this.updateListeners.entries()) {
+      const value = getValueAtPath(path, message.payload)
+      // the path is not present in the update message, skip
+      if (value === undefined) continue
+
+      // only send the sub-tree into the listeners
+      for (const listener of listeners) {
+        listener(value)
+      }
+    }
+  }
+
+  private onMessage = (data: Buffer | ArrayBuffer | Buffer[]) => {
     try {
       const message = JSON.parse(data.toString('utf-8'))
-      if (message.msgID !== undefined) {
-        const msgID = message.msgID
-        const listener = this.msgIDListeners.get(msgID)
-        if (listener) {
-          listener(message)
-        }
-        this.msgIDListeners.delete(msgID)
-      } else if (message.method === "update") {
-        const updateMessage = message as DHDUpdateMessage
-        for (const [path, listeners] of this.updateListeners.entries()) {
-          const value = getValueAtPath(path, updateMessage.payload)
-          // the path is not present in the update message, skip
-          if (value === undefined) continue
-
-          // only send the sub-tree into the listeners
-          for (const listener of listeners) {
-            listener(value)
-          }
-        }
+      if (message.msgID !== undefined) { // all responses have a msgID
+        this.onResponseMessage(message as DHDAnyResMessage)
+      } else if (message.method === "update") { // "update" messages have no msgID
+        this.onUpdateMessage(message as DHDUpdateMessage)
+      } else {
+        this.emit(`warn`, `Unknown message received: ${JSON.stringify(message)}`)
       }
     } catch {
       this.emit('error', `Invalid message received: ${data.toString('utf-8')}`)
@@ -829,7 +841,7 @@ class DHDWebSocketClient extends EventEmitter<{
    * @param listener A method that will receive updates 
    * @returns A method that will end sending updates to the `listener`
    */
-  public subscribeToPath = async (path: string, listener: DHDUpdateHandler): Promise<() => Promise<void>> => {
+  public subscribeToPath = async (path: string, listener: DHDUpdateHandler): Promise<DHDSubscriptionHandle> => {
     if (!path.startsWith("/")) {
       throw new Error(`Path needs to start with a "/" character, got "${path}"`)
     }
@@ -840,7 +852,7 @@ class DHDWebSocketClient extends EventEmitter<{
         "path": path,
       } satisfies Omit<DHDSubscribeReqMessage, 'msgID'> as DHDUntaggedOutgoingMessage, (response) => {
         if (response.success && response.method === "subscribe") {
-          const processedPath = path.substring(1)
+          const processedPath = path.substring(1) // strip the leading "/" in the path, we won't be using it for matching the listeners
 
           let updateListeners = this.updateListeners.get(processedPath)
           if (!updateListeners) {
@@ -850,8 +862,8 @@ class DHDWebSocketClient extends EventEmitter<{
 
           updateListeners.push(listener)
 
-          resolve(() => {
-            return new Promise((resolve, reject) => {
+          resolve({
+            unsubscribe: () => new Promise((resolve, reject) => {
               const filteredListeners = this.updateListeners.get(processedPath).filter((handler) => handler !== listener)
               this.updateListeners.set(processedPath, filteredListeners)
               if (filteredListeners.length === 0) {
