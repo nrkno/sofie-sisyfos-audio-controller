@@ -706,11 +706,29 @@ class DHDWebSocketClient extends EventEmitter<{
     })
   }
 
-  private sendMessage = (message: DHDUntaggedOutgoingMessage, onReply?: DHDResponseHandler): { msgID: number } => {
-    if (this.wsConnection.readyState !== 1) return
+  private getNextMsgID(): number {
+    const msgID = this.protocolLastMsgID++
+    // wrap around the msgID when needed
+    if (this.protocolLastMsgID >= Number.MAX_SAFE_INTEGER) {
+      this.protocolLastMsgID = Number.MIN_SAFE_INTEGER
+    }
+
+    return msgID
+  }
+
+  /**
+   * Send a message to DHD Mixer with a sequence number as msgID
+   * @param message Message to be sent, without the msgID parameter
+   * @param onReply A function that will be invoked when a response to this message is received
+   * @returns the `msgID` of the sent message
+   */
+  private sendMessage = (message: DHDUntaggedOutgoingMessage, onReply?: DHDResponseHandler): number => {
+    if (this.wsConnection.readyState !== 1) {
+      throw new Error(`Connection is in an invalid state for sending messages: ${this.wsConnection.readyState}`)
+    }
 
     const taggedMessage = message as DHDOutgoingMessage
-    taggedMessage.msgID = this.protocolLastMsgID++
+    taggedMessage.msgID = this.getNextMsgID()
 
     if (onReply) {
       this.msgIDListeners.set(taggedMessage.msgID, onReply)
@@ -718,9 +736,7 @@ class DHDWebSocketClient extends EventEmitter<{
 
     this.wsConnection.send(JSON.stringify(message))
 
-    return {
-      msgID: taggedMessage.msgID,
-    }
+    return taggedMessage.msgID
   }
 
   private onResponseMessage = (message: DHDAnyResMessage) => {
