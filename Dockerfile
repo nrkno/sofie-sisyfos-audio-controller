@@ -1,5 +1,5 @@
 # BUILD IMAGE
-FROM node:18.16-alpine as build
+FROM node:24-alpine as build
 RUN apk add --no-cache git
 
 RUN corepack enable
@@ -14,7 +14,7 @@ RUN yarn workspaces focus --all --production
 RUN yarn cache clean
 
 # DEPLOY IMAGE
-FROM node:18.16-alpine
+FROM node:24-alpine
 RUN apk add --no-cache dumb-init
 
 # Install corepack and use yarn 4.1.0

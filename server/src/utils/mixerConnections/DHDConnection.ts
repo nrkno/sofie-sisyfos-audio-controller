@@ -67,7 +67,9 @@ export class DHDMixerConnection implements MixerConnection {
       })
       global.mainThreadHandler.updateMixerOnline(this.mixerIndex)
 
-      this.setupMixerConnection().catch((err) => {
+      const abort = new AbortController() // for future use when setupMixerConnection needs to be re-run when source assignments to faders change
+
+      this.setupMixerConnection(abort.signal).catch((err) => {
         logger.error(`Error trying to set up the mixer connection: ${err}`)
       })
     })
@@ -82,7 +84,7 @@ export class DHDMixerConnection implements MixerConnection {
     return result
   }
 
-  private async setupMixerConnection() {
+  private async setupMixerConnection(signal: AbortSignal) {
     const fadersGetResult = await this.dhdConnection.getAttribute<Record<string, {
       sourceid: number
       label: string
@@ -155,14 +157,12 @@ export class DHDMixerConnection implements MixerConnection {
       }
     )
 
-    const abort = new AbortController()
-
     for (const [sisyfosChannelIndex, targets] of this.sisyfosChannelIdToDHDTargets) {
       logger.debug(`Running subscriptions for faderId: ${targets.faderId}`)
 
       try {
-        await this.subscribeFaderLevel(targets.faderId, targets.sisyfosTypeIndex, sisyfosChannelIndex, abort.signal)
-        await this.subscribeGainLevel(targets.faderId, targets.sisyfosTypeIndex, sisyfosChannelIndex, abort.signal)
+        await this.subscribeFaderLevel(targets.faderId, targets.sisyfosTypeIndex, sisyfosChannelIndex, signal)
+        await this.subscribeGainLevel(targets.faderId, targets.sisyfosTypeIndex, sisyfosChannelIndex, signal)
       } catch (e) {
         logger
           .data(e)
