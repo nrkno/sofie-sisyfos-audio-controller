@@ -706,7 +706,7 @@ class DHDWebSocketClient extends EventEmitter<{
     })
   }
 
-  private getNextMsgID(): number {
+  private getNextMsgID = (): number => {
     const msgID = this.protocolLastMsgID++
     // wrap around the msgID when needed
     if (this.protocolLastMsgID >= Number.MAX_SAFE_INTEGER) {
