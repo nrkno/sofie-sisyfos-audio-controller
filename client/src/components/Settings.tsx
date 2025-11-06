@@ -359,6 +359,21 @@ class Settings extends React.PureComponent<AppProps & Store, SettingsState> {
                                 </label>
                                 <br />
                                 <label className="settings-input-field">
+                                    MIXER ID :
+                                    <input
+                                        name="mixerId"
+                                        type="text"
+                                        value={mixer.mixerId}
+                                        onChange={(event) =>
+                                            this.handleMixerChange(
+                                                event,
+                                                mixerIndex
+                                            )
+                                        }
+                                    />
+                                </label>
+                                <br />
+                                <label className="settings-input-field">
                                     LOCAL MIXER IP:
                                     <input
                                         name="localIp"
