@@ -8,7 +8,7 @@ import {
 export const DHDMixer: MixerProtocol = {
   protocol: MixerConnectionTypes.DHD,
   label: 'DHD.audio Series52',
-  MAX_UPDATES_PER_SECOND: 10,
+  MAX_UPDATES_PER_SECOND: 50,
   initializeCommands: [
     {
       mixerMessage: '/audio/mixers/{mixerID}/faders'
@@ -25,13 +25,23 @@ export const DHDMixer: MixerProtocol = {
       fromMixer: {
         CHANNEL_INPUT_GAIN: [
           {
-            mixerMessage: '/audio/mixers/{mixerID}/faders/{faderID}/params/gain',
+            mixerMessage: '/audio/mixers/{mixerID}/faders/{faderID}/params/gain/again/value',
             value: 0,
             type: 'int',
             min: -30,
             max: 18,
             zero: 0,
           },
+        ],
+        CHANNEL_VU: [
+          {
+            mixerMessage: '/audio/mixers/{mixerID}/faders/{faderID}/meter/_pfl',
+            value: 0,
+            type: 'int',
+            min: -160,
+            max: 10,
+            zero: 0,
+          }
         ],
         // CHANNEL_INPUT_SELECTOR: [
         // {
@@ -72,11 +82,7 @@ export const DHDMixer: MixerProtocol = {
         CHANNEL_NAME: [
           {
             mixerMessage: '/audio/mixers/{mixerID}/faders/{faderID}/label',
-            value: 0,
             type: 'string',
-            min: -200,
-            max: 20,
-            zero: 0,
           },
         ],
         // PFL: [emptyMixerMessage()],
@@ -89,7 +95,7 @@ export const DHDMixer: MixerProtocol = {
       toMixer: {
         CHANNEL_INPUT_GAIN: [
           {
-            mixerMessage: '/audio/mixers/{mixerID}/faders/{faderID}/params/gain',
+            mixerMessage: '/audio/mixers/{mixerID}/faders/{faderID}/params/gain/again/value',
             value: 0,
             type: 'int',
             min: -30,
@@ -136,11 +142,7 @@ export const DHDMixer: MixerProtocol = {
         CHANNEL_NAME: [
           {
             mixerMessage: '/audio/mixers/{mixerID}/faders/{faderID}/label',
-            value: 0,
             type: 'string',
-            min: -200,
-            max: 20,
-            zero: 0,
           },
         ],
         // CHANNEL_AMIX: [

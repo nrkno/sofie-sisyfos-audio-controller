@@ -16,7 +16,9 @@ import { MixerConnection } from '.'
 import { response } from 'express'
 import { EventEmitter } from 'stream'
 import { addAbortListener } from 'events'
-import { floatToDB } from './LawoRubyConnection'
+import { dbToFloat, floatToDB } from './LawoRubyConnection'
+import { sendVuLevel } from '../vuServer'
+import { VuType } from '../../../../shared/src/utils/vu-server-types'
 
 export class DHDMixerConnection implements MixerConnection {
   mixerProtocol: MixerProtocol
@@ -88,13 +90,17 @@ export class DHDMixerConnection implements MixerConnection {
     const fadersGetResult = await this.dhdConnection.getAttribute<Record<string, {
       sourceid: number
       label: string
+      fader: number
     }>>(this.fillAddress(this.mixerProtocol.initializeCommands[0].mixerMessage))
     for (const [faderId, faderObj] of Object.entries<{
       sourceid: number
       label: string
+      fader: number
     }>(fadersGetResult)) {
       this.sourceIdToFaderId.set(faderObj.sourceid, faderId)
     }
+
+    logger.trace(`DHD mixer has ${Object.keys(fadersGetResult).length} faders available`)
 
     const sortedSourceIds = Array.from(this.sourceIdToFaderId.keys()).sort()
     // Set channel labels
@@ -157,12 +163,15 @@ export class DHDMixerConnection implements MixerConnection {
       }
     )
 
+    logger.trace(`DHD mixer configuration: ${JSON.stringify(Array.from(this.sisyfosChannelIdToDHDTargets.entries()), undefined, 2)}`)
+
     for (const [sisyfosChannelIndex, targets] of this.sisyfosChannelIdToDHDTargets) {
       logger.debug(`Running subscriptions for faderId: ${targets.faderId}`)
 
       try {
         await this.subscribeFaderLevel(targets.faderId, targets.sisyfosTypeIndex, sisyfosChannelIndex, signal)
         await this.subscribeGainLevel(targets.faderId, targets.sisyfosTypeIndex, sisyfosChannelIndex, signal)
+        await this.subscribeVUMeter(targets.faderId, targets.sisyfosTypeIndex, sisyfosChannelIndex, signal)
       } catch (e) {
         logger
           .data(e)
@@ -258,7 +267,7 @@ export class DHDMixerConnection implements MixerConnection {
 
         const level = Number(value)
         if (!Number.isFinite(level)) {
-          logger.error(`Level value is not a finite number: ${level}`)
+          logger.error(`Level value (at ${command}) is not a finite number: ${level} (${JSON.stringify(value)})`)
         }
 
         if (
@@ -272,6 +281,45 @@ export class DHDMixerConnection implements MixerConnection {
             level: dbToFloat(level),
           })
           global.mainThreadHandler.updatePartialStore(sisyfosChannelId)
+        }
+      }, signal)
+    } catch (e) {
+      logger.error(`Could not subscribe to ${command}: ${e}`)
+    }
+  }
+
+  private async subscribeVUMeter(
+    faderId: string,
+    typeIndex: number,
+    sisyfosChannelId: number,
+    signal: AbortSignal
+  ) {
+    const command = this.fillAddress(this.mixerProtocol.channelTypes[
+      typeIndex
+    ].fromMixer.CHANNEL_VU[0].mixerMessage, faderId)
+
+    try {
+      await this.dhdConnection.subscribeToPath<number[]>(command, (values) => {
+        // logger.trace(`Receiving VU meter level from ${command} Ch ${sisyfosChannelId}`)
+
+        if (!Array.isArray(values)) {
+          logger.error(`Level value (at ${command}) is not an array: (${JSON.stringify(values)})`)
+        }
+
+        for (let i=0; i<values.length; i++) {
+          const level = values[i]
+          if (
+            level >=
+            this.mixerProtocol.channelTypes[typeIndex].fromMixer
+              .CHANNEL_VU[0].min
+          ) {
+            sendVuLevel(
+                sisyfosChannelId,
+                VuType.Channel,
+                i,
+                dbToFloat(level)
+            )
+          }
         }
       }, signal)
     } catch (e) {
@@ -683,7 +731,10 @@ class DHDWebSocketClient extends EventEmitter<{
             }
           })
 
-          resolve()
+          this.getAttribute<T>(path).then((value) => {
+            listener(value)
+            resolve()
+          }).catch(() => {})
         } else {
           reject(`Invalid response: "${JSON.stringify(response)}"`)
         }
