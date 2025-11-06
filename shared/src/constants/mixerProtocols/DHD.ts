@@ -154,9 +154,9 @@ export const DHDMixer: MixerProtocol = {
     },
   ],
   fader: {
-    min: -160,
-    max: 10,
-    zero: 0,
+    min: 0,
+    max: 1,
+    zero: 0.75,
     step: 1,
   },
   meter: {
