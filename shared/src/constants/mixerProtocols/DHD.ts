@@ -1,14 +1,19 @@
 import {
-    MixerProtocol,
-    emptyMixerMessage,
-    VuLabelConversionType,
-    MixerConnectionTypes
+  MixerProtocol,
+  emptyMixerMessage,
+  VuLabelConversionType,
+  MixerConnectionTypes
 } from '../MixerProtocolInterface'
 
 export const DHDMixer: MixerProtocol = {
   protocol: MixerConnectionTypes.DHD,
   label: 'DHD.audio Series52',
   MAX_UPDATES_PER_SECOND: 10,
+  initializeCommands: [
+    {
+      mixerMessage: '/audio/mixers/{mixerID}/faders'
+    }
+  ],
   leadingZeros: false, //some OSC protocols needs channels to be 01, 02 etc.
   pingTime: 20 * 1000, //Bypass ping when pingTime is zero
   vuLabelConversionType: VuLabelConversionType.Decibel,
@@ -29,30 +34,30 @@ export const DHDMixer: MixerProtocol = {
           },
         ],
         // CHANNEL_INPUT_SELECTOR: [
-          // {
-          //   mixerMessage: 'Ruby.Sources.{channel}.DSP.Input.LR Mode',
-          //   value: 0,
-          //   type: 'int',
-          //   label: 'LR',
-          // },
-          // {
-          //   mixerMessage: 'Ruby.Sources.{channel}.DSP.Input.LR Mode',
-          //   value: 4,
-          //   type: 'int',
-          //   label: 'LL',
-          // },
-          // {
-          //   mixerMessage: 'Ruby.Sources.{channel}.DSP.Input.LR Mode',
-          //   value: 1,
-          //   type: 'int',
-          //   label: 'RR',
-          // },
-          // {
-          //   mixerMessage: 'Ruby.Sources.{channel}.DSP.Input.LR Mode',
-          //   value: 5,
-          //   type: 'int',
-          //   label: 'MONO',
-          // },
+        // {
+        //   mixerMessage: 'Ruby.Sources.{channel}.DSP.Input.LR Mode',
+        //   value: 0,
+        //   type: 'int',
+        //   label: 'LR',
+        // },
+        // {
+        //   mixerMessage: 'Ruby.Sources.{channel}.DSP.Input.LR Mode',
+        //   value: 4,
+        //   type: 'int',
+        //   label: 'LL',
+        // },
+        // {
+        //   mixerMessage: 'Ruby.Sources.{channel}.DSP.Input.LR Mode',
+        //   value: 1,
+        //   type: 'int',
+        //   label: 'RR',
+        // },
+        // {
+        //   mixerMessage: 'Ruby.Sources.{channel}.DSP.Input.LR Mode',
+        //   value: 5,
+        //   type: 'int',
+        //   label: 'MONO',
+        // },
         // ],
         CHANNEL_OUT_GAIN: [
           {
@@ -93,30 +98,30 @@ export const DHDMixer: MixerProtocol = {
           },
         ],
         // CHANNEL_INPUT_SELECTOR: [
-          // {
-          //   mixerMessage: 'Ruby.Sources.{channel}.DSP.Input.LR Mode',
-          //   value: 0,
-          //   type: 'int',
-          //   label: 'LR',
-          // },
-          // {
-          //   mixerMessage: 'Ruby.Sources.{channel}.DSP.Input.LR Mode',
-          //   value: 4,
-          //   type: 'int',
-          //   label: 'LL',
-          // },
-          // {
-          //   mixerMessage: 'Ruby.Sources.{channel}.DSP.Input.LR Mode',
-          //   value: 1,
-          //   type: 'int',
-          //   label: 'RR',
-          // },
-          // {
-          //   mixerMessage: 'Ruby.Sources.{channel}.DSP.Input.LR Mode',
-          //   value: 5,
-          //   type: 'int',
-          //   label: 'MONO',
-          // },
+        // {
+        //   mixerMessage: 'Ruby.Sources.{channel}.DSP.Input.LR Mode',
+        //   value: 0,
+        //   type: 'int',
+        //   label: 'LR',
+        // },
+        // {
+        //   mixerMessage: 'Ruby.Sources.{channel}.DSP.Input.LR Mode',
+        //   value: 4,
+        //   type: 'int',
+        //   label: 'LL',
+        // },
+        // {
+        //   mixerMessage: 'Ruby.Sources.{channel}.DSP.Input.LR Mode',
+        //   value: 1,
+        //   type: 'int',
+        //   label: 'RR',
+        // },
+        // {
+        //   mixerMessage: 'Ruby.Sources.{channel}.DSP.Input.LR Mode',
+        //   value: 5,
+        //   type: 'int',
+        //   label: 'MONO',
+        // },
         // ],
         CHANNEL_OUT_GAIN: [
           {

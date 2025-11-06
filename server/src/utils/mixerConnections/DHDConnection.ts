@@ -44,10 +44,10 @@ export class DHDMixerConnection implements MixerConnection {
     logger.info('Connecting to DHD via WebSockets')
 
     this.dhdConnection.addListener('error', (error) => {
-      logger.error(`DHDConection error: ${error}`)
+      logger.error(`DHDWebSocketClient error: ${error}`)
     })
     this.dhdConnection.addListener('warn', (warn) => {
-      logger.error(`Unexpected condition in DHDConnection: ${warn}`)
+      logger.error(`Unexpected condition in DHDWebSocketClient: ${warn}`)
     })
     this.dhdConnection.addListener('close', () => {
       store.dispatch({
@@ -88,7 +88,7 @@ export class DHDMixerConnection implements MixerConnection {
     const fadersGetResult = await this.dhdConnection.getAttribute<Record<string, {
       sourceid: number
       label: string
-    }>>(this.fillAddress('/audio/mixers/{mixerID}/faders'))
+    }>>(this.fillAddress(this.mixerProtocol.initializeCommands[0].mixerMessage))
     for (const [faderId, faderObj] of Object.entries<{
       sourceid: number
       label: string
