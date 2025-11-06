@@ -189,14 +189,14 @@ export class DHDMixerConnection implements MixerConnection {
 
         const level = Number(value)
         if (!Number.isFinite(level)) {
-          logger.error(`Level value is not a finite number: ${level}`)
+          logger.error(`Level value (at ${command}) is not a finite number: ${level} (${JSON.stringify(value)})`)
         }
 
         if (
           !state.channels[0].chMixerConnection[this.mixerIndex].channel[
             sisyfosChannelId
           ].fadeActive &&
-          level >
+          level >=
           this.mixerProtocol.channelTypes[typeIndex].fromMixer
             .CHANNEL_OUT_GAIN[0].min
         ) {
@@ -210,7 +210,7 @@ export class DHDMixerConnection implements MixerConnection {
             store.dispatch({
               type: FaderActionTypes.SET_FADER_LEVEL,
               faderIndex: sisyfosChannelId,
-              level: level,
+              level: dbToFloat(level),
             })
           }
           // update the output level anyway
@@ -218,12 +218,12 @@ export class DHDMixerConnection implements MixerConnection {
             type: ChannelActionTypes.SET_OUTPUT_LEVEL,
             mixerIndex: this.mixerIndex,
             channel: sisyfosChannelId,
-            level: level,
+            level: dbToFloat(level),
           })
 
           // toggle pgm based on level
           logger.trace(
-            `Set Ch ${sisyfosChannelId} pgmOn ${level > 0} from ${command} level ${level}: ${level}`
+            `Set Ch ${sisyfosChannelId} pgmOn ${level > 0} from ${command} level ${level}: ${dbToFloat(level)}`
           )
           store.dispatch({
             type: FaderActionTypes.SET_PGM,
@@ -262,14 +262,14 @@ export class DHDMixerConnection implements MixerConnection {
         }
 
         if (
-          level >
+          level >=
           this.mixerProtocol.channelTypes[typeIndex].fromMixer
             .CHANNEL_INPUT_GAIN[0].min
         ) {
           store.dispatch({
             type: FaderActionTypes.SET_INPUT_GAIN,
             faderIndex: sisyfosChannelId,
-            level: level,
+            level: dbToFloat(level),
           })
           global.mainThreadHandler.updatePartialStore(sisyfosChannelId)
         }
