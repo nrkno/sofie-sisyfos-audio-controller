@@ -5,6 +5,10 @@ import {
   MixerConnectionTypes
 } from '../MixerProtocolInterface'
 
+export const INITIALIZE_COMMANDS_FADERS = 0
+export const INITIALIZE_COMMANDS_SOURCE_LIST = 1
+export const INITIALIZE_COMMANDS_FADER_SOURCE_ID = 2
+
 export const DHDMixer: MixerProtocol = {
   protocol: MixerConnectionTypes.DHD,
   label: 'DHD.audio Series52',
@@ -12,6 +16,12 @@ export const DHDMixer: MixerProtocol = {
   initializeCommands: [
     {
       mixerMessage: '/audio/mixers/{mixerID}/faders'
+    },
+    {
+      mixerMessage: '/audio/mixers/{mixerID}/sourcelist'
+    },
+    {
+      mixerMessage: '/audio/mixers/{mixerID}/faders/{faderID}/sourceid'
     }
   ],
   leadingZeros: false, //some OSC protocols needs channels to be 01, 02 etc.
