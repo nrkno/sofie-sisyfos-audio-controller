@@ -411,7 +411,9 @@ export class DHDMixerConnection implements MixerConnection {
 
     logger.trace(`Sending out value: ${value} (${outputLevel}) to channel ${channelIndex} (faderId: ${target.faderId})`)
 
-    this.dhdConnection.setAttribute(mixerMessage, value)
+    this.dhdConnection.setAttribute(mixerMessage, value).catch((e) => {
+      logger.error(`Could not set attribute: ${e}`)
+    })
   }
 
   async updatePflState(channelIndex: number) {
@@ -440,7 +442,11 @@ export class DHDMixerConnection implements MixerConnection {
     const target = this.sisyfosChannelIdToDHDTargets.get(channelIndex)
     if (target?.faderId === undefined) return
 
-    this.dhdConnection.setAttribute(this.fillAddress(proto.mixerMessage, target.faderId), floatToDB(gain, proto.min))
+    const mixerMessage = this.fillAddress(proto.mixerMessage, target.faderId)
+
+    this.dhdConnection.setAttribute(mixerMessage, floatToDB(gain, proto.min)).catch((e) => {
+      logger.error(`Could not set attribute: ${e}`)
+    })
   }
   updateInputSelector(channelIndex: number, inputSelected: number) {
     return true
