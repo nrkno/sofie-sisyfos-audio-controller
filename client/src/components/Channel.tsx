@@ -77,6 +77,7 @@ class Channel extends React.Component<
             nextProps.fader.ignoreAutomation !=
                 this.props.fader.ignoreAutomation ||
             nextProps.fader.showChannel != this.props.fader.showChannel ||
+            nextProps.fader.disabled !== this.props.fader.disabled ||
             nextProps.fader.faderLevel != this.props.fader.faderLevel ||
             nextProps.label != this.props.label ||
             nextProps.settings.mixers[0].mixerProtocol !=
