@@ -501,7 +501,7 @@ function dbToFloat(d: number, min = -90): number {
 
 interface DHDMessageBase {
   msgID: number
-  // method: "auth" | "set" | "get" | "subscribe" | "unsubscribe"
+  // method: "auth" | "set" | "get" | "subscribe" | "unsubscribe" | "event" // "event" is undocumented
 }
 
 interface DHDErrResMessage extends DHDMessageBase {
@@ -561,6 +561,12 @@ interface DHDUpdateMessage {
   payload: any
 }
 
+interface DHDEventMessage {
+  method: "event"
+  payload: unknown
+  type: unknown
+}
+
 interface DHDUnsubscribeReqMessage extends DHDMessageBase {
   method: "unsubscribe"
   path: string
@@ -592,6 +598,7 @@ class DHDWebSocketClient extends EventEmitter<{
   'warn': [string]
   'close': [],
   'open': [],
+  'event': [DHDEventMessage["type"], DHDEventMessage["payload"]]
 }> {
 
   private msgIDListeners: Map<number, DHDResponseHandler> = new Map()
@@ -720,6 +727,8 @@ class DHDWebSocketClient extends EventEmitter<{
         this.onResponseMessage(message as DHDAnyResMessage)
       } else if (message.method === "update") { // "update" messages have no msgID
         this.onUpdateMessage(message as DHDUpdateMessage)
+      } else if (message.method === "event") {
+        this.emit(`event`, message.payload, message.type)
       } else {
         this.emit(`warn`, `Unknown message received: ${JSON.stringify(message)}`)
       }
