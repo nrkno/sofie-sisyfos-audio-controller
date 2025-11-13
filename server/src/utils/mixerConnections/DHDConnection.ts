@@ -608,7 +608,10 @@ class DHDWebSocketClient extends EventEmitter<{
 }> {
 
   private msgIDListeners: Map<number, DHDResponseHandler> = new Map()
-  private updateListeners: Map<string, DHDUpdateHandler<unknown>[]> = new Map()
+  private updateListeners: Map<string, {
+    explodedPath: string[]
+    listeners: DHDUpdateHandler<unknown>[]
+  }> = new Map()
 
   private protocolLastMsgID = 0
 
@@ -703,24 +706,22 @@ class DHDWebSocketClient extends EventEmitter<{
     this.msgIDListeners.delete(msgID)
   }
 
-  private onUpdateMessage = (message: DHDUpdateMessage) => {
-    function getValueAtPath(path: string, obj: any) {
-      const explodedPath = path.split("/") // the path we have in the Map already has the leading "/" stripped
-      let target = obj
-      for (let i = 0; i < explodedPath.length; i++) {
-        target = target[explodedPath[i]]
-        if (target === undefined) return undefined
-      }
-      return target
+  private getValueAtPath(explodedPath: string[], obj: any) {
+    let target = obj
+    for (let i = 0; i < explodedPath.length; i++) {
+      target = target[explodedPath[i]]
+      if (target === undefined) return undefined
     }
-
-    for (const [path, listeners] of this.updateListeners.entries()) {
-      const value = getValueAtPath(path, message.payload)
+    return target
+  }
+  private onUpdateMessage = (message: DHDUpdateMessage) => {
+    for (const entry of this.updateListeners.values()) {
+      const value = this.getValueAtPath(entry.explodedPath, message.payload)
       // the path is not present in the update message, skip
       if (value === undefined) continue
 
       // only send the sub-tree into the listeners
-      for (const listener of listeners) {
+      for (const listener of entry.listeners) {
         listener(value)
       }
     }
@@ -808,8 +809,8 @@ class DHDWebSocketClient extends EventEmitter<{
 
   /**
    * Subscribe to updates of the device sub-tree
-   * @param path 
-   * @param listener A method that will receive updates 
+   * @param path
+   * @param listener A method that will receive updates
    * @returns An object with a method that will end sending updates to the `listener`
    */
   public subscribeToPath = async <T>(path: string, listener: DHDUpdateHandler<T>, signal: AbortSignal): Promise<void> => {
@@ -825,18 +826,22 @@ class DHDWebSocketClient extends EventEmitter<{
         if (response.success && response.method === "subscribe") {
           const processedPath = path.substring(1) // strip the leading "/" in the path, we won't be using it for matching the listeners
 
-          let updateListeners = this.updateListeners.get(processedPath)
+          let updateListeners = this.updateListeners.get(processedPath)?.listeners
           if (!updateListeners) {
             updateListeners = []
-            this.updateListeners.set(processedPath, updateListeners)
+            this.updateListeners.set(processedPath, {
+              explodedPath: path.split("/"),
+              listeners: updateListeners
+            })
           }
 
           updateListeners.push(listener)
 
           addAbortListener(signal, () => {
-            const filteredListeners = this.updateListeners.get(processedPath).filter((handler) => handler !== listener)
-            this.updateListeners.set(processedPath, filteredListeners)
-            if (filteredListeners.length === 0) {
+            const entry = this.updateListeners.get(processedPath)
+            entry.listeners = entry.listeners.filter((handler) => handler !== listener)
+            // this.updateListeners.set(processedPath, filteredListeners)
+            if (entry.listeners.length === 0) {
               // There are no more listeners for this path, unsubscribe:
               this.sendMessage({
                 "method": "unsubscribe",
