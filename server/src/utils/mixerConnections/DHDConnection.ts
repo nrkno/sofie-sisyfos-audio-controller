@@ -837,6 +837,7 @@ class DHDWebSocketClient extends EventEmitter<{
             const filteredListeners = this.updateListeners.get(processedPath).filter((handler) => handler !== listener)
             this.updateListeners.set(processedPath, filteredListeners)
             if (filteredListeners.length === 0) {
+              // There are no more listeners for this path, unsubscribe:
               this.sendMessage({
                 "method": "unsubscribe",
                 "path": path,
@@ -845,6 +846,7 @@ class DHDWebSocketClient extends EventEmitter<{
                   this.emit('warn', `Could not unsubscribe to ${path}: ${JSON.stringify(response)}`)
                 }
               })
+              this.updateListeners.delete(processedPath)
             }
           })
 
