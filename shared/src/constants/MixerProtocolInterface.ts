@@ -12,6 +12,7 @@ export enum MixerConnectionTypes {
     'StuderVista' = 'StuderVista',
     'vMix' = 'vMix',
     'Atem' = 'Atem',
+    'DHD' = 'DHD'
 }
 
 export enum FxParam {
@@ -70,10 +71,15 @@ export interface MixerProtocolGeneric {
 
 export interface MixerProtocol extends MixerProtocolGeneric {
     leadingZeros?: boolean
-    pingCommand?: Array<MixerMessageProtocol> // Simple command for pinging Audio mixer
-    pingResponseCommand?: Array<MixerMessageProtocol> // Ping commands that expects responses
-    pingTime?: number // How often should mixer ping the pingCommands
-    mixerTimeout?: number // Max time between responses from AudioMixer
+    /** Simple command for pinging Audio mixer */
+    pingCommand?: Array<MixerMessageProtocol>
+    /** Ping commands that expects responses */
+    pingResponseCommand?: Array<MixerMessageProtocol>
+    /** How often should mixer ping the pingCommands, in milliseconds */
+    pingTime?: number
+    /** Max time between responses from AudioMixer, in milliseconds */
+    mixerTimeout?: number
+    /** Commands to be sent to the mixer after connection is established */
     initializeCommands?: Array<MixerMessageProtocol>
 }
 

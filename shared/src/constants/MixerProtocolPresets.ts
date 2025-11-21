@@ -14,6 +14,7 @@ import { StuderOnAirMaster } from './mixerProtocols/StuderOnAirEmber'
 import { StuderVistaMaster } from './mixerProtocols/StuderVistaEmber'
 import { VMix } from './mixerProtocols/vMix'
 import { Atem } from './mixerProtocols/atem'
+import { DHDMixer } from './mixerProtocols/DHD'
 
 // Interface:
 import { MixerProtocolGeneric } from './MixerProtocolInterface'
@@ -30,6 +31,7 @@ export const MixerProtocolPresets: {
         lawoRelayVrx4: LawoRelayVrx4,
         lawoMC2: LawoMC2,
         lawoRuby: LawoRuby,
+        dhd: DHDMixer,
         dmxis: DMXIS,
         yamahaQlCl: YamahaQLCL,
         sslSystemT: SSLSystemT,

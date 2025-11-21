@@ -329,6 +329,51 @@ class Settings extends React.PureComponent<AppProps & Store, SettingsState> {
                                 </label>
                                 <br />
                                 <label className="settings-input-field">
+                                    MIXER URL :
+                                    <input
+                                        name="deviceUrl"
+                                        type="text"
+                                        value={mixer.deviceUrl}
+                                        onChange={(event) =>
+                                            this.handleMixerChange(
+                                                event,
+                                                mixerIndex
+                                            )
+                                        }
+                                    />
+                                </label>
+                                <br />
+                                <label className="settings-input-field">
+                                    MIXER TOKEN :
+                                    <input
+                                        name="deviceToken"
+                                        type="text"
+                                        value={mixer.deviceToken}
+                                        onChange={(event) =>
+                                            this.handleMixerChange(
+                                                event,
+                                                mixerIndex
+                                            )
+                                        }
+                                    />
+                                </label>
+                                <br />
+                                <label className="settings-input-field">
+                                    MIXER ID :
+                                    <input
+                                        name="mixerId"
+                                        type="text"
+                                        value={mixer.mixerId}
+                                        onChange={(event) =>
+                                            this.handleMixerChange(
+                                                event,
+                                                mixerIndex
+                                            )
+                                        }
+                                    />
+                                </label>
+                                <br />
+                                <label className="settings-input-field">
                                     LOCAL MIXER IP:
                                     <input
                                         name="localIp"
