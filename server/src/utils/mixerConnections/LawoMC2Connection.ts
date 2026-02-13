@@ -121,7 +121,7 @@ export class LawoMC2Connection implements MixerConnection {
         logger.info('Connecting to Ember')
         this.emberConnection.connect().catch((e) => {
             logger.error(`Error when connecting to Ember: ${e}, ${typeof e === 'object' ? e.stack : ''}`)
-        })    
+        })
     }
 
     private async setupMixerConnection() {
@@ -212,8 +212,8 @@ export class LawoMC2Connection implements MixerConnection {
         typeIndex: number,
         channelTypeIndex: number,
     ) {
-        const mixerMessage = typeIndex === 0 ? 
-            'Channels.Inputs.${channel}.Fader' : 
+        const mixerMessage = typeIndex === 0 ?
+            'Channels.Inputs.${channel}.Fader' :
             'Channels.Groups.${channel}.Fader'
         const channel =
             state.channels[0].chMixerConnection[this.mixerIndex].channel[chNumber - 1]
@@ -638,7 +638,7 @@ export class LawoMC2Connection implements MixerConnection {
                 )
             },
         )
-    
+
         // subscribe to amix
         const aMixMessage =
             this.mixerProtocol.channelTypes[typeIndex].fromMixer.CHANNEL_AMIX[0]
@@ -662,30 +662,30 @@ export class LawoMC2Connection implements MixerConnection {
         )
     }
     private async subscribeVUMeter(
-        chNumber: number, 
+        chNumber: number,
         typeIndex: number,
         channelTypeIndex: number,
     ) {
         const assignedFaderIndex = this.getAssignedFaderIndex(chNumber - 1)
-        const mixerMessage = 
+        const mixerMessage =
                 this._insertChannelName(
                     this.mixerProtocol.channelTypes[typeIndex].fromMixer.CHANNEL_VU[0].mixerMessage, String(channelTypeIndex + 1)
                 )
-        
+
         try {
             const node = await this.emberConnection.getElementByPath(mixerMessage)
-            
+
             if (!node?.contents || node.contents.type !== Model.ElementType.Parameter) {
                 logger.error('Invalid node type for VU meter')
                 return
             }
-    
+
             const param = node.contents
             if (!param.streamIdentifier) {
                 logger.error('No stream identifier found for VU meter')
                 return
             }
-                
+
             const internalPath = this.emberConnection.getInternalNodePath(node)
             if (!internalPath) return
             this.meteringRef[String(internalPath)] ={ faderIndex: assignedFaderIndex, factor: param.factor, lastUpdated: Date.now() }
@@ -702,9 +702,9 @@ export class LawoMC2Connection implements MixerConnection {
                     if (node.contents.type !== Model.ElementType.Parameter) return
                     const value = Number(node.contents.value)
                     if (Number.isNaN(value)) return
-    
+
                     const factor = param.factor ?? 1
-    
+
                     sendVuLevel(
                         assignedFaderIndex,
                         VuType.Channel,
@@ -714,7 +714,7 @@ export class LawoMC2Connection implements MixerConnection {
                 }
             )
             await subscription.response
-    
+
         } catch (e) {
             logger.error('Error when subscribing to VU meter: ' + mixerMessage)
         }
@@ -731,7 +731,7 @@ export class LawoMC2Connection implements MixerConnection {
         this.emberConnection
             .getElementByPath(message)
             .then(async (element: any) => {
-                if (element.contents.factor && typeof value === 'number') {
+                if (element?.contents?.factor && typeof value === 'number') {
                     value *= element.contents.factor
                 }
                 logger.trace(
