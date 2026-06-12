@@ -289,7 +289,7 @@ export class DHDMixerConnection implements MixerConnection {
         ) {
           const isOn = this.faderOnState.get(faderId) ?? false
 
-          // update the fader always 
+          // update the fader always
           store.dispatch({
             type: FaderActionTypes.SET_FADER_LEVEL,
             faderIndex: sisyfosChannelId,
@@ -344,7 +344,7 @@ export class DHDMixerConnection implements MixerConnection {
           store.dispatch({
             type: FaderActionTypes.SET_INPUT_GAIN,
             faderIndex: sisyfosChannelId,
-            level: dbToFloat(level),
+            level: aGainDBToFloat(level),
           })
           global.mainThreadHandler.updatePartialStore(sisyfosChannelId)
         }
@@ -451,7 +451,7 @@ export class DHDMixerConnection implements MixerConnection {
     const value = floatToDB(outputLevel, levelProto.min)
 
     const isPgm = value > levelProto.min
-    
+
     if (isPgm !== this.faderOnState.get(target.faderId)) {
       logger.trace(`Sending out on state: ${isPgm} (was: ${this.faderOnState.get(target.faderId)}) to channel ${channelIndex} (faderId: ${target.faderId})`)
 
@@ -497,7 +497,7 @@ export class DHDMixerConnection implements MixerConnection {
 
     const mixerMessage = this.fillAddress(proto.mixerMessage, target.faderId)
 
-    this.dhdConnection.setAttribute(mixerMessage, floatToDB(gain, proto.min)).catch((e) => {
+    this.dhdConnection.setAttribute(mixerMessage, aGainFloatToDB(gain)).catch((e) => {
       logger.error(`Could not set attribute: ${e}`)
     })
   }
@@ -557,6 +557,26 @@ function dbToFloat(d: number, min = -90): number {
     f = 1
   }
   return Math.max(0, f)
+}
+
+function aGainFloatToDB(f: number): number {
+    // the DHD analog gain range is from -30 to 84 dB, with 1 dB steps
+    // f = 0.75 must correspond to 0 dB, so we need to scale the fader value accordingly
+    if (f >= 0.75) {
+        return Math.round((f - 0.75) * 84 / 0.25) // max dB value: +84.
+    } else {
+        return Math.round((f - 0.75) * 30 / 0.75) // min dB value: -30
+    }
+}
+
+function aGainDBToFloat(d: number): number {
+    if (d >= 0) {
+        return Math.min(1, d * 0.25 / 84 + 0.75)
+    } else if (d >= -30) {
+        return d * 0.75 / 30 + 0.75
+    } else {
+        return 0
+    }
 }
 
 interface DHDMessageBase {
@@ -829,9 +849,9 @@ class DHDWebSocketClient extends EventEmitter<{
 
   /**
    * Set the device sub-tree to match a given value
-   * @param path 
+   * @param path
    * @param payload Can be an object or a scalar value if `path` targets a scalar value in the device tree
-   * @returns 
+   * @returns
    */
   public setAttribute = async <T = any>(path: string, payload: T): Promise<T> => {
     return new Promise((resolve, reject) => {
@@ -856,7 +876,7 @@ class DHDWebSocketClient extends EventEmitter<{
 
   /**
    * Get the current state of the device sub-tree at a given path
-   * @param path 
+   * @param path
    * @returns Can be an object or a scalar value
    */
   public getAttribute = async <T = any>(path: string): Promise<T> => {
@@ -881,8 +901,8 @@ class DHDWebSocketClient extends EventEmitter<{
 
   /**
    * Subscribe to updates of the device sub-tree
-   * @param path 
-   * @param listener A method that will receive updates 
+   * @param path
+   * @param listener A method that will receive updates
    * @returns An object with a method that will end sending updates to the `listener`
    */
   public subscribeToPath = async <T>(path: string, listener: DHDUpdateHandler<T>, signal: AbortSignal): Promise<void> => {
