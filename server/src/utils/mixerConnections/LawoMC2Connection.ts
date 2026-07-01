@@ -464,7 +464,7 @@ export class LawoMC2Connection implements MixerConnection {
                 }
 
                 // assume it is in db now
-                level = this._faderLevelToFloat(Number(level), 0)
+                level = this._gainLevelToFloat(Number(level), 0)
                 store.dispatch({
                     type: FaderActionTypes.SET_INPUT_GAIN,
                     faderIndex: assignedFaderIndex,
@@ -836,7 +836,7 @@ export class LawoMC2Connection implements MixerConnection {
             this.mixerProtocol.channelTypes[channelType].toMixer
                 .CHANNEL_INPUT_GAIN[0]
 
-        let level = this._floatToFaderLevel(gain, 0)
+        let level = this._floatToGainLevel(gain, 0)
 
         // let level = gain * (protocol.max - protocol.min) + protocol.min
 
@@ -993,5 +993,39 @@ export class LawoMC2Connection implements MixerConnection {
 
     private _faderLevelToFloat(value: number, typeIndex: number) {
         return dbToFloat(value)
+    }
+
+    private _floatToGainLevel(value: number, typeIndex: number) {
+        const f = value
+        const min = -128
+        const scale = (-min - 60) / 0.0625 // scale for the bottom of the fader
+        if (f >= 0.5) {
+          return (f - 0.75) * 60 // -15..+15 dB range
+        } else if (f >= 0.0625) {
+          return ((f - 0.0625) * 45) / 0.4375 - 60 // -60..-15 dB range
+        } else if (f > 0.0) {
+          return f * scale + min // min dB value: -128 dB..-60dB
+        } else {
+          return -128
+        }
+    }
+
+    private _gainLevelToFloat(value: number, typeIndex: number) {
+         let f: number
+         const d = value
+         const min = -128
+         const scale = (-min - 60) / 0.0625 // scale for the bottom of the fader
+
+         if (d <= min) {
+             f = 0
+         } else if (d < -60) {
+             f = (d - min) / scale
+         } else if (d < -15) {
+             f = ((d + 60) * 0.4375) / 45 + 0.0625
+         } else {
+             f = d / 60 + 0.75
+         }
+
+         return Math.max(0, f)
     }
 }
